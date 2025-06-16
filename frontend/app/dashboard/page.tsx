@@ -57,6 +57,8 @@ function useZaps() {
 
 export default function Dashboard() {
   const { loading, zaps } = useZaps();
+  const router = useRouter();
+
   return (
     <div>
       <Appbar />
@@ -64,7 +66,9 @@ export default function Dashboard() {
         <div className="max-w-screen-xl w-full">
           <div className="flex justify-between px-8">
             <div className="text-2xl font-semibold font-mono ">My Zaps</div>
-            <DarkButton onClick={() => {}}>+ Create</DarkButton>
+            <DarkButton onClick={() => {
+              router.push("/zap/create")
+            }}>+ Create</DarkButton>
           </div>
         </div>
       </div>
