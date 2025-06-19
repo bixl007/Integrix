@@ -5,11 +5,13 @@ export const Input = ({
   onChange,
   type = "text",
   required = false,
+  placeholder = "",
 }: {
   label: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: "text" | "password";
   required?: boolean;
+  placeholder?: string;
 }) => {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -23,6 +25,7 @@ export const Input = ({
         onChange={onChange}
         className="mb-3 border border-black rounded py-2 w-full pr-10 p-2"
         required={required} // ✅ Ensuring required works
+        placeholder={placeholder}
       />
       {type === "password" && (
         <button

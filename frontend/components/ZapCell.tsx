@@ -10,13 +10,13 @@ export const ZapCell = ({
   image?: string;
 }) => {
   return (
-    <div onClick={onClick} className="border border-black py-6 m-1 px-6 flex w-[300px] justify-center items-center cursor-pointer">
+    <div onClick={onClick} className="bg-white shadow-md rounded-lg p-6 w-full max-w-md flex items-center cursor-pointer hover:shadow-lg transition-shadow duration-200">
       {image && (
-        <img src={image} width={30} className="rounded-full mr-3" alt="" />
+        <img src={image} width={40} className="rounded-full mr-4" alt="" />
       )}
-      <div className="flex text-xl items-center">
-        <div className="font-bold mr-2">{index}.</div>
-        <div>{name}</div>
+      <div className="flex items-center">
+        <div className="text-2xl font-bold text-orange-500 mr-4">{index}</div>
+        <div className="text-xl text-gray-800">{name}</div>
       </div>
     </div>
   );
