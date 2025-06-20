@@ -11,6 +11,7 @@ interface Zap {
   id: string;
   triggerId: string;
   userId: string;
+  createdAt: string;
   actions: {
     id: string;
     zapId: string;
@@ -161,7 +162,11 @@ function ZapTable({ zaps }: { zaps: Zap[] }) {
                     </div>
                   </td>
                   <td className="py-4 px-6 align-middle text-gray-600">
-                    Nov 13, 2023
+                    {new Date(z.createdAt).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </td>
                   <td className="py-4 px-6 align-middle break-all text-gray-600">
                     {z.id}
