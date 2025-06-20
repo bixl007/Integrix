@@ -29,8 +29,10 @@ export const Hero = () => {
         }} size="large">
           Get Started Free
         </PrimaryButton>
-        <SecondaryButton onClick={() => {}} size="large">
-          Contact Sales
+        <SecondaryButton onClick={() => {
+          router.push("/login")
+        }} size="large">
+          Login Here
         </SecondaryButton>
       </div>
 

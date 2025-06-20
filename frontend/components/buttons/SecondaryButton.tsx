@@ -14,7 +14,7 @@ export const SecondaryButton = ({
       onClick={onClick}
       className={`${size === "small" ? "text-sm" : "text-lg"} ${
         size === "small" ? "px-8 py-2" : "px-10 py-2"
-      } cursor-pointer rounded-full hover:shadow-lg border border-black hover:bg-black hover:text-white`}
+      } cursor-pointer flex items-center rounded-full hover:shadow-lg border border-black hover:bg-black hover:text-white`}
     >
       {children}
     </div>
