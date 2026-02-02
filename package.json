@@ -1,0 +1,23 @@
+{
+  "name": "integrix",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "turbo db:migrate",
+    "db:push": "turbo db:push",
+    "docker:up": "docker compose up -d",
+    "docker:build": "docker compose up --build -d",
+    "docker:down": "docker compose down"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "npm@10.8.2"
+}
