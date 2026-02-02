@@ -1,7 +1,9 @@
+"use client";
+
 import { Appbar } from "@/components/Appbar";
 import { Hero } from "@/components/Hero";
 
-export default function Home() {
+const Home = () => {
   return (
     <div>
       <Appbar />
@@ -9,3 +11,5 @@ export default function Home() {
     </div>
   );
 }
+
+export default Home;
