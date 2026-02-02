@@ -1,0 +1,38 @@
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy root package files
+COPY package*.json ./
+COPY turbo.json ./
+
+# Copy packages
+COPY packages/database ./packages/database
+COPY packages/tsconfig ./packages/tsconfig
+
+# Copy app
+COPY apps/hooks ./apps/hooks
+
+# Install dependencies
+RUN npm install
+
+# Generate Prisma client
+RUN npm run db:generate --workspace=@integrix/database
+
+# Build
+RUN npm run build --workspace=@integrix/hooks
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy built app and dependencies
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/hooks/dist ./apps/hooks/dist
+COPY --from=builder /app/apps/hooks/package.json ./apps/hooks/package.json
+
+WORKDIR /app/apps/hooks
+
+EXPOSE 3002
+
+CMD ["node", "dist/index.js"]

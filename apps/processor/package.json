@@ -1,0 +1,19 @@
+{
+  "name": "@integrix/processor",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsc -w",
+    "build": "tsc -b",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@integrix/database": "*",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "@integrix/tsconfig": "*",
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}

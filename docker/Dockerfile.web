@@ -1,0 +1,26 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Copy root package files
+COPY package*.json ./
+COPY turbo.json ./
+
+# Copy packages
+COPY packages/database ./packages/database
+COPY packages/tsconfig ./packages/tsconfig
+
+# Copy app
+COPY apps/web ./apps/web
+
+# Install dependencies
+RUN npm install
+
+# Generate Prisma client
+RUN npm run db:generate --workspace=@integrix/database
+
+EXPOSE 3001
+ENV PORT=3001
+ENV HOSTNAME="0.0.0.0"
+
+# Run from the app directory with npx for proper path resolution
+CMD ["npx", "--workspace=@integrix/web", "next", "dev", "-p", "3001"]
