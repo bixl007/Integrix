@@ -60,7 +60,14 @@ router.post("/", authMiddleware, async (req, res) => {
 // @ts-ignore
 router.get("/", authMiddleware, async (req, res) => {
   // @ts-ignore
-  const id = req.id;
+  const id = Number(req.id);
+
+  if (Number.isNaN(id)) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
   const zaps = await prismaClient.zap.findMany({
     where: {
       userId: id,
@@ -87,8 +94,14 @@ router.get("/", authMiddleware, async (req, res) => {
 //@ts-ignore
 router.get("/:zapId", authMiddleware, async (req, res) => {
   //@ts-ignore
-  const id = req.id;
+  const id = Number(req.id);
   const zapId = req.params.zapId;
+
+  if (Number.isNaN(id)) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
 
   const zap = await prismaClient.zap.findFirst({
     where: {

@@ -1,11 +1,12 @@
 "use client";
 
 import { Appbar } from "@/components/Appbar";
-import { DarkButton } from "@/components/buttons/DarkButton";
+import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { BACKEND_URL, HOOKS_URL } from "../config";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 interface Zap {
   id: string;
@@ -63,129 +64,113 @@ export default function Dashboard() {
   const router = useRouter();
 
   return (
-    <div>
+    <div className="min-h-screen bg-background relative">
+      <div className="absolute inset-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none" />
       <Appbar />
-      <div className="flex justify-center py-8 px-4">
-        <div className="max-w-screen-xl w-full">
-          <div className="flex justify-between px-8">
-            <div className="text-2xl font-semibold font-mono ">My Zaps</div>
-            <DarkButton
-              onClick={() => {
-                router.push("/zap/create");
-              }}
-            >
-              + Create
-            </DarkButton>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground font-sans">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Manage your automated workflows.</p>
           </div>
+          <PrimaryButton
+            onClick={() => {
+              router.push("/zap/create");
+            }}
+          >
+            + Create New Zap
+          </PrimaryButton>
         </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-40 rounded-2xl bg-secondary/30 animate-pulse" />
+            ))}
+          </div>
+        ) : zaps.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-xl text-center">
+            <p className="text-muted-foreground mb-4">You haven't created any Zaps yet.</p>
+            <PrimaryButton onClick={() => router.push("/zap/create")}>Create your first Zap</PrimaryButton>
+          </div>
+        ) : (
+          <ZapGrid zaps={zaps} />
+        )}
       </div>
-      {loading ? "Loading..." : <ZapTable zaps={zaps} />}
     </div>
   );
 }
 
-function ZapTable({ zaps }: { zaps: Zap[] }) {
+function ZapGrid({ zaps }: { zaps: Zap[] }) {
   const router = useRouter();
 
+  const buildWebhookUrl = (zap: Zap) => {
+    return `${HOOKS_URL}/hooks/catch/${zap.userId}/${zap.id}`;
+  };
+
   return (
-    <div className="flex justify-center py-8 px-4">
-      <div className="max-w-screen-xl w-full px-8">
-        <table className="min-w-full bg-white border border-orange-200 rounded-xl shadow-lg overflow-hidden">
-          <thead>
-            <tr className="bg-gradient-to-r from-orange-100 to-white">
-              <th className="py-4 px-6 text-left font-bold text-orange-700 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="py-4 px-6 text-left font-bold text-orange-700 uppercase tracking-wider">
-                Last Edit
-              </th>
-              <th className="py-4 px-6 text-left font-bold text-orange-700 uppercase tracking-wider">
-                Zap ID
-              </th>
-              <th className="py-4 px-6 text-left font-bold text-orange-700 uppercase tracking-wider">
-                Webhook URL
-              </th>
-              <th className="py-4 px-6 text-left font-bold text-orange-700 uppercase tracking-wider">
-                Go
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {zaps.map((z, i) => {
-              const maxVisibleActions = 2;
-              const remainingActionsCount = z.actions.length - maxVisibleActions;
-              return (
-                <tr
-                  key={z.id}
-                  className={`transition-colors ${
-                    i % 2 === 0 ? "bg-white" : "bg-orange-50"
-                  } hover:bg-orange-100`}
-                >
-                  <td className="py-4 px-6 align-middle font-medium text-gray-900">
-                    <div className="flex items-center">
-                      <div className="flex items-center flex-shrink-0">
-                        <img
-                          src={z.trigger.type.image}
-                          width={40}
-                          className="rounded-full border-2 border-white shadow-md"
-                          alt={z.trigger.type.name}
-                        />
-                        {z.actions.slice(0, maxVisibleActions).map((x) => (
-                          <img
-                            key={x.id}
-                            src={x.type.image}
-                            width={40}
-                            className="rounded-full border-2 border-white shadow-md -ml-4"
-                            alt={x.type.name}
-                          />
-                        ))}
-                        {remainingActionsCount > 0 && (
-                          <div className="w-10 h-10 rounded-full border-2 border-white shadow-md -ml-4 bg-orange-100 flex items-center justify-center text-orange-700 font-semibold">
-                            +{remainingActionsCount}
-                          </div>
-                        )}
-                      </div>
-                      <div className="ml-4">
-                        <span className="font-semibold">
-                          {z.trigger.type.name}
-                        </span>
-                        {z.actions.slice(0, maxVisibleActions).map((x) => (
-                          <span key={x.id} className="text-gray-600">
-                            {" "}
-                            → {x.type.name}
-                          </span>
-                        ))}
-                        {remainingActionsCount > 0 && (
-                          <span className="text-gray-600"> → ...</span>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6 align-middle text-gray-600">
-                    {new Date(z.createdAt).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </td>
-                  <td className="py-4 px-6 align-middle break-all text-gray-600">
-                    {z.id}
-                  </td>
-                  <td className="py-4 px-6 align-middle break-all text-gray-600">{`${HOOKS_URL}/hooks/catch/1/${z.id}`}</td>
-                  <td className="py-4 px-6 align-middle">
-                    <button
-                      className="bg-orange-500 text-white px-4 py-2 rounded-lg shadow hover:bg-orange-600 transition-colors duration-150 font-semibold"
-                      onClick={() => router.push("/zap/" + z.id)}
-                    >
-                      Go
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {zaps.map((z, i) => (
+        <motion.div
+          key={z.id}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, delay: i * 0.1 }}
+          className="group relative bg-card hover:bg-secondary/20 border border-border hover:border-primary/50 rounded-2xl p-6 transition-all shadow-sm hover:shadow-lg cursor-pointer"
+          onClick={() => router.push("/zap/" + z.id)}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <img
+                src={z.trigger.type.image}
+                className="w-10 h-10 rounded-full bg-background p-1 border border-border"
+                alt={z.trigger.type.name}
+              />
+              <span className="text-muted-foreground">→</span>
+              <div className="flex -space-x-3">
+                {z.actions.slice(0, 3).map((a) => (
+                  <img
+                    key={a.id}
+                    src={a.type.image}
+                    className="w-10 h-10 rounded-full bg-background p-1 border border-border"
+                    alt={a.type.name}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="text-xs font-mono text-muted-foreground bg-secondary/50 px-2 py-1 rounded">
+              ID: {z.id.substring(0, 4)}...
+            </div>
+          </div>
+
+          <h3 className="font-semibold text-foreground text-lg mb-2 group-hover:text-primary transition-colors">
+            {z.trigger.type.name} Workflow
+          </h3>
+
+          <div className="text-sm text-muted-foreground mb-4 line-clamp-2">
+            Automated workflow triggered by {z.trigger.type.name} performing {z.actions.length} action{z.actions.length !== 1 ? 's' : ''}.
+          </div>
+
+          <div className="rounded-lg border border-border/50 bg-secondary/20 p-2 mb-4">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Webhook URL</p>
+            <p className="text-xs font-mono text-foreground break-all">{buildWebhookUrl(z)}</p>
+            <button
+              className="mt-2 text-xs font-medium text-primary hover:underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(buildWebhookUrl(z));
+              }}
+            >
+              Copy URL
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-border/50">
+            <span className="text-xs text-muted-foreground">{new Date(z.createdAt).toLocaleDateString()}</span>
+            <button className="text-sm font-medium text-primary hover:underline">View Details →</button>
+          </div>
+        </motion.div>
+      ))}
     </div>
   );
 }

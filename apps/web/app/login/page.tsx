@@ -1,26 +1,29 @@
 "use client";
 
-import { CheckFeature } from "@/components/CheckFeature";
 import { Input } from "@/components/Input";
 import axios from "axios";
 import { BACKEND_URL } from "../config";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Appbar } from "@/components/Appbar";
+import { ModeToggle } from "@/components/ModeToggle";
+import { motion } from "framer-motion";
 
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); // ✅ Prevent form reload
-
+    e.preventDefault();
     if (!email || !password) {
       setError("Email and Password are required!");
       return;
     }
+
+    setLoading(true);
+    setError("");
 
     try {
       const res = await axios.post(`${BACKEND_URL}/api/v1/user/signin`, {
@@ -32,95 +35,77 @@ export default function Login() {
       router.push("/dashboard");
     } catch (err) {
       setError("Invalid credentials. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <Appbar />
-      <div className="max-w-5xl mx-auto flex flex-col justify-center min-h-screen items-center p-4 gap-10 md:gap-20">
-        <div className="flex flex-col md:flex-row gap-10 w-full">
-          <div className="flex-1 pt-10 md:pt-20 text-center md:text-left">
-            <div className="text-2xl md:text-3xl font-semibold pb-6 font-mono">
-              Automate across your teams
-            </div>
-            <div className="space-y-3">
-              <CheckFeature label={"Easy setup, no coding required"} />
-              <CheckFeature label={"Free forever for core features"} />
-              <CheckFeature
-                label={"14-day trial of premium features and apps"}
+    <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden">
+      <div className="absolute top-4 right-4 z-50">
+        <ModeToggle />
+      </div>
+
+      <div className="absolute inset-0 w-full h-full bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-secondary/30 via-background to-background pointer-events-none" />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-lg p-6 md:p-10"
+      >
+        <div className="mb-10 text-center">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground font-sans mb-3">
+            Welcome Back
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            Continue your automation journey.
+          </p>
+        </div>
+
+        <div className="bg-card/50 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl p-8">
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-4">
+              <Input
+                label="Email Address"
+                type="text"
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="john@example.com"
+              />
+              <Input
+                label="Password"
+                type="password"
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
               />
             </div>
-          </div>
-          <form
-            onSubmit={handleLogin} // ✅ Form submission with validation
-            className="flex-1 border p-6 shadow-xl rounded-2xl max-w-sm w-full"
-          >
-            <div className="text-sm font-light text-gray-600 mb-2">
-              * indicates required
-            </div>
-            <Input
-              label="Email"
-              type="text"
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Input
-              label="Password"
-              type="password"
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
-            <div className="text-sm font-light text-gray-600 mt-2">
-              By signing up, you agree to Integrix Terms of Service and Privacy
-              Policy
-            </div>
+
+            {error && (
+              <div className="text-destructive text-sm font-medium bg-destructive/10 p-3 rounded-lg text-center">
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
-              className="bg-amber-600 p-3 rounded-full text-white w-full hover:bg-amber-700 mt-4"
+              disabled={loading}
+              className="w-full bg-primary text-primary-foreground font-semibold py-4 rounded-xl hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
             >
-              Login
+              {loading ? "Signing In..." : "Sign In"}
             </button>
-            <div className="text-sm font-light text-gray-600 mt-2 text-center">
-              Don't have an account?{" "}
-              <a href="/signup" className="text-blue-700 underline">
-                Signup
-              </a>
-            </div>
           </form>
-        </div>
-        <div className="hidden lg:block w-full text-center">
-          <div className="text-sm font-normal text-gray-600 flex flex-col gap-6">
-            <div>Trusted at companies large and small</div>
-            <div className="flex flex-wrap justify-center gap-6">
-              <img
-                className="h-6"
-                src="https://res.cloudinary.com/zapier-media/image/upload/q_auto/v1685631505/Company%20logos/dropbox_bfeqf0.svg"
-                alt="Dropbox"
-              />
-              <img
-                className="h-6"
-                src="https://res.cloudinary.com/zapier-media/image/upload/q_auto/v1685631782/Company%20logos/lyft_xb3vqy.svg"
-                alt="Lyft"
-              />
-              <img
-                className="h-6"
-                src="https://res.cloudinary.com/zapier-media/image/upload/q_auto/v1685631507/Company%20logos/hello-fresh_spytbw.svg"
-                alt="HelloFresh"
-              />
-              <img
-                className="h-6"
-                src="https://res.cloudinary.com/zapier-media/image/upload/q_auto/v1685631505/Company%20logos/asana_sgibbb.svg"
-                alt="Asana"
-              />
-              <img
-                className="h-6"
-                src="https://res.cloudinary.com/zapier-media/image/upload/q_auto/v1685631509/Company%20logos/zendesk_g4uhso.svg"
-                alt="Zendesk"
-              />
-            </div>
+
+          <div className="mt-8 text-center text-sm text-muted-foreground">
+            Don't have an account?{" "}
+            <a
+              href="/signup"
+              className="text-foreground font-semibold hover:underline decoration-primary underline-offset-4"
+            >
+              Sign up
+            </a>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

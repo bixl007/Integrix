@@ -10,13 +10,16 @@ export const ZapCell = ({
   image?: string;
 }) => {
   return (
-    <div onClick={onClick} className="bg-white shadow-md rounded-lg p-6 w-full max-w-md flex items-center cursor-pointer hover:shadow-lg transition-shadow duration-200">
+    <div onClick={onClick} className="bg-card border border-border rounded-xl p-4 w-full max-w-md flex items-center cursor-pointer hover:bg-secondary/20 transition-all hover:-translate-y-0.5 hover:border-primary/50 relative group">
       {image && (
-        <img src={image} width={40} className="rounded-full mr-4" alt="" />
+        <img src={image} width={42} className="rounded-full mr-4 border border-border p-1 bg-background" alt="" />
       )}
       <div className="flex items-center">
-        <div className="text-2xl font-bold text-orange-500 mr-4">{index}</div>
-        <div className="text-xl text-gray-800">{name}</div>
+        <div className="text-sm font-mono font-bold text-muted-foreground bg-secondary px-2 py-1 rounded mr-4 min-w-[30px] text-center group-hover:text-foreground transition-colors">{index}.</div>
+        <div className="text-lg font-medium text-foreground">{name}</div>
+      </div>
+      <div className="ml-auto text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+        Edit →
       </div>
     </div>
   );

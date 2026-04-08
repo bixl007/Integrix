@@ -3,8 +3,8 @@
 import { BACKEND_URL } from "@/app/config";
 import { Appbar } from "@/components/Appbar";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { Input } from "@/components/Input";
 import { ZapCell } from "@/components/ZapCell";
+import { ZapModal } from "@/components/ZapModal";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -28,7 +28,7 @@ function useAvailableActionsAndTriggers() {
   };
 }
 
-export default function () {
+export default function CreateZap() {
   const router = useRouter();
   const [selectedTrigger, setSelectedTrigger] = useState<{
     id: string;
@@ -49,18 +49,19 @@ export default function () {
   );
   const { availableActions, availableTriggers } =
     useAvailableActionsAndTriggers();
+
   return (
-    <div className="min-h-screen w-full bg-gray-50">
+    <div className="min-h-screen w-full bg-background relative overflow-hidden flex flex-col">
+      <div className="absolute inset-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none" />
       <Appbar />
-      <div className="flex justify-center items-start pt-24">
-        <div className="w-full max-w-2xl px-4">
-          <div className="flex justify-end mb-8">
+
+      <main className="flex-1 flex flex-col items-center pt-12 pb-24 px-4 relative z-10">
+        <div className="w-full max-w-3xl">
+          <div className="flex justify-between items-center mb-12">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Create Zap</h1>
             <PrimaryButton
-              size="large"
               onClick={async () => {
-                if (!selectedTrigger?.id) {
-                  return;
-                }
+                if (!selectedTrigger?.id) return;
 
                 const response = await axios.post(
                   `${BACKEND_URL}/api/v1/zap`,
@@ -81,44 +82,49 @@ export default function () {
                 router.push("/dashboard");
               }}
             >
-              Publish
+              Publish Zap
             </PrimaryButton>
           </div>
 
-          <div className="flex flex-col items-center w-full">
-            <div className="flex flex-col items-center gap-4 w-++ull">
-              <ZapCell
-                name={selectedTrigger?.name ? selectedTrigger.name : "Trigger"}
-                index={1}
-                image={selectedTrigger?.image}
-                onClick={() => {
-                  setSelectedModalIndex(1);
-                }}
-              />
-              <div className="h-12 w-1 bg-orange-200 rounded-full"></div>
+          <div className="space-y-8 relative">
+            <div className="absolute left-[50%] top-0 bottom-0 w-px bg-border -translate-x-1/2 -z-10 bg-gradient-to-b from-transparent via-border to-transparent" />
+
+            <div className="flex flex-col items-center gap-6">
+              {/* Trigger Section */}
+              <div className="relative group">
+                {/* Label */}
+                <div className="absolute -left-20 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground uppercase tracking-widest hidden md:block">
+                  Trigger
+                </div>
+                <ZapCell
+                  name={selectedTrigger?.name ? selectedTrigger.name : "Select Trigger"}
+                  index={1}
+                  image={selectedTrigger?.image}
+                  onClick={() => setSelectedModalIndex(1)}
+                />
+              </div>
+
+              {/* Connector */}
+              <div className="h-8 w-px bg-border" />
+
+              {/* Actions Section */}
               {selectedActions.map((action, index) => (
-                <div
-                  key={action.index}
-                  className="flex flex-col items-center gap-4 w-full"
-                >
+                <div key={action.index} className="flex flex-col items-center gap-6 w-full relative">
+                  <div className="absolute -left-20 top-[40%] text-sm font-semibold text-muted-foreground uppercase tracking-widest hidden md:block">
+                    Action
+                  </div>
                   <ZapCell
-                    onClick={() => {
-                      setSelectedModalIndex(action.index);
-                    }}
-                    name={
-                      action.availableActionName
-                        ? action.availableActionName
-                        : "Action"
-                    }
+                    onClick={() => setSelectedModalIndex(action.index)}
+                    name={action.availableActionName ? action.availableActionName : "Select Action"}
                     index={action.index}
                     image={action.image}
                   />
-                  <div className="h-12 w-1 bg-orange-200 rounded-full"></div>
+                  <div className="h-8 w-px bg-border" />
                 </div>
               ))}
+
+              {/* Add Button */}
               <button
-                type="button"
-                className="bg-orange-500 hover:bg-orange-600 text-white text-2xl rounded-full w-12 h-12 flex items-center justify-center shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-300 transition-all duration-150"
                 onClick={() => {
                   setSelectedActions((a) => [
                     ...a,
@@ -130,22 +136,24 @@ export default function () {
                     },
                   ]);
                 }}
-                aria-label="Add Action"
+                className="group flex flex-col items-center gap-2 cursor-pointer transition-all hover:scale-110"
               >
-                +
+                <div className="w-12 h-12 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary shadow-sm transition-colors text-2xl pb-1">
+                  +
+                </div>
+                <span className="text-xs font-semibold text-muted-foreground group-hover:text-primary transition-colors uppercase tracking-wider">Add Step</span>
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </main>
+
       {selectedModalIndex && (
-        <Modal
+        <ZapModal
           availableItems={
             selectedModalIndex === 1 ? availableTriggers : availableActions
           }
-          onSelect={(
-            props: null | { name: string; id: string; image?: string; metadata: any }
-          ) => {
+          onSelect={(props) => {
             if (props === null) {
               setSelectedModalIndex(null);
               return;
@@ -169,214 +177,11 @@ export default function () {
                 return newActions;
               });
             }
-            setSelectedModalIndex(null); // Close modal after selection
+            setSelectedModalIndex(null);
           }}
           index={selectedModalIndex}
         />
       )}
-    </div>
-  );
-}
-
-function Modal({
-  index,
-  onSelect,
-  availableItems,
-}: {
-  index: number;
-  onSelect: (
-    props: null | { name: string; id: string; image?: string; metadata: any }
-  ) => void;
-  availableItems: { id: string; name: string; image: string }[];
-}) {
-  const [step, setStep] = useState(0);
-  const isTrigger = index === 1;
-  const [selectedAction, setSelectedAction] = useState<{
-    id: string;
-    name: string;
-    image: string;
-  }>();
-
-  return (
-    <div
-      id="static-modal"
-      data-modal-backdrop="static"
-      tabIndex={-1}
-      className="overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-screen max-h-full flex bg-orange-100/60"
-    >
-      <div className="relative p-4 w-full max-w-2xl max-h-full">
-        {/* Modal content */}
-        <div className="relative bg-white rounded-xl shadow-lg border border-orange-100">
-          {/* Modal header */}
-          <div className="flex items-center justify-between p-4 md:p-5 border-b rounded-t border-orange-100 bg-orange-50">
-            <h3 className="text-xl font-semibold text-orange-700">
-              Select {index === 1 ? "Trigger" : "Action"}
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                onSelect(null);
-              }}
-              className="text-orange-400 bg-transparent hover:bg-orange-100 hover:text-orange-700 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center"
-              data-modal-hide="static-modal"
-            >
-              <svg
-                className="w-3 h-3"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 14 14"
-              >
-                <path
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"
-                />
-              </svg>
-              <span className="sr-only">Close modal</span>
-            </button>
-          </div>
-          {step === 1 && selectedAction?.id === "email" && (
-            <EmailSelector
-              setMetaData={(metadata) => {
-                onSelect({
-                  ...selectedAction,
-                  metadata,
-                });
-              }}
-            />
-          )}
-          {step === 1 && selectedAction?.id === "solana" && (
-            <SolanaSelector
-              setMetaData={(metadata) => {
-                onSelect({
-                  ...selectedAction,
-                  metadata,
-                });
-              }}
-            />
-          )}
-
-          {step === 0 && (
-            <div className="p-4 md:p-5 space-y-4">
-              {availableItems.map(({ id, name, image }) => {
-                return (
-                  <div
-                    onClick={() => {
-                      if (isTrigger) {
-                        onSelect({
-                          id,
-                          name,
-                          image,
-                          metadata: {},
-                        });
-                      } else {
-                        setStep((s) => s + 1);
-                        setSelectedAction({
-                          id,
-                          name,
-                          image,
-                        });
-                      }
-                    }}
-                    className="flex border border-orange-50 p-4 cursor-pointer hover:bg-orange-50 rounded-lg items-center gap-3"
-                  >
-                    <img
-                      src={image}
-                      width={36}
-                      className="rounded-full bg-orange-100"
-                      alt=""
-                    />
-                    <div className="flex flex-col justify-center px-3 text-orange-700 font-semibold">
-                      {name}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmailSelector({
-  setMetaData,
-}: {
-  setMetaData: (params: any) => void;
-}) {
-  const [email, setEmail] = useState("");
-  const [body, setBody] = useState("");
-
-  return (
-    <div className="p-4">
-      <Input
-        label={"To"}
-        type={"text"}
-        placeholder="To"
-        onChange={(e) => {
-          setEmail(e.target.value);
-        }}
-      />
-      <Input
-        label={"Body"}
-        type={"text"}
-        placeholder="Body"
-        onChange={(e) => {
-          setBody(e.target.value);
-        }}
-      />
-      <PrimaryButton
-        onClick={() => {
-          setMetaData({
-            email,
-            body,
-          });
-        }}
-      >
-        Sumbit
-      </PrimaryButton>
-    </div>
-  );
-}
-
-function SolanaSelector({
-  setMetaData,
-}: {
-  setMetaData: (params: any) => void;
-}) {
-  const [amount, setAmount] = useState("");
-  const [address, setAddress] = useState("");
-  return (
-    <div className="p-4">
-      <Input
-        label={"Amount"}
-        type={"text"}
-        placeholder="Amount"
-        onChange={(e) => {
-          setAmount(e.target.value);
-        }}
-      />
-      <Input
-        label={"Address"}
-        type={"text"}
-        placeholder="Address"
-        onChange={(e) => {
-          setAddress(e.target.value);
-        }}
-      />
-      <PrimaryButton
-        onClick={() => {
-          setMetaData({
-            amount,
-            address,
-          });
-        }}
-      >
-        Sumbit
-      </PrimaryButton>
     </div>
   );
 }

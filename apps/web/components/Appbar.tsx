@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LinkButton } from "./buttons/LinkButton";
 import { PrimaryButton } from "./buttons/PrimaryButton";
 import { useEffect, useState } from "react";
+import { ModeToggle } from "./ModeToggle";
 
 export const Appbar = () => {
   const router = useRouter();
@@ -16,42 +17,43 @@ export const Appbar = () => {
   }, [pathname]);
 
   return (
-    <div className="flex border-b justify-between px-4">
-      <div
-        className="flex flex-col justify-center px-4 cursor-pointer"
-        onClick={() => (isLoggedIn ? router.push("/dashboard") : router.push("/"))}
-      >
-        Integrix
-      </div>
-      <div className="flex pr-4 gap-4 my-2">
-        {pathname === "/login" ? (
-          <PrimaryButton onClick={() => router.push("/signup")}>
-            Signup
-          </PrimaryButton>
-        ) : pathname === "/signup" ? (
-          <PrimaryButton onClick={() => router.push("/login")}>
-            Login
-          </PrimaryButton>
-        ) : pathname === "/" ? (
-          <>
-            <LinkButton onClick={() => router.push("/login")}>Login</LinkButton>
-            <PrimaryButton onClick={() => router.push("/signup")}>
+    <div className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-40">
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div
+          className="text-xl font-bold font-sans tracking-tight cursor-pointer"
+          onClick={() => router.push(isLoggedIn ? "/dashboard" : "/")}
+        >
+          Integrix
+        </div>
+        <div className="flex items-center gap-6">
+          <ModeToggle />
+          {pathname === "/login" ? (
+            <PrimaryButton onClick={() => router.push("/signup")} size="small">
               Signup
             </PrimaryButton>
-          </>
-        ) : (
-          <PrimaryButton
-            onClick={() => {
-              // Clear the token from localStorage
-              localStorage.removeItem("token");
-
-              // Redirect to the homepage
-              router.push("/");
-            }}
-          >
-            Logout
-          </PrimaryButton>
-        )}
+          ) : pathname === "/signup" ? (
+            <PrimaryButton onClick={() => router.push("/login")} size="small">
+              Login
+            </PrimaryButton>
+          ) : pathname === "/" ? (
+            <div className="flex items-center gap-4">
+              <LinkButton onClick={() => router.push("/login")}>Login</LinkButton>
+              <PrimaryButton onClick={() => router.push("/signup")} size="small">
+                Signup
+              </PrimaryButton>
+            </div>
+          ) : (
+            <PrimaryButton
+              onClick={() => {
+                localStorage.removeItem("token");
+                router.push("/");
+              }}
+              size="small"
+            >
+              Logout
+            </PrimaryButton>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -11,10 +11,9 @@ export const PrimaryButton = ({
 }) => {
   return (
     <button
-      className={`${size === "small" ? "text-sm" : "text-lg"} ${
-        size === "small" ? "px-4 py-2" : "px-8 py-4"
-      } font-semibold bg-orange-500 text-white cursor-pointer hover:bg-orange-600 rounded-full hover:shadow-lg flex justify-center items-center transition-all duration-200`}
       onClick={onClick}
+      className={`${size === "small" ? "text-sm px-4 py-2" : "text-base px-8 py-3.5"
+        } font-medium bg-primary text-primary-foreground rounded-full hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2`}
     >
       {children}
     </button>

@@ -1,6 +1,22 @@
 
+
 export const HeroVideo = () => {
-    return <div className="flex justify-center p-5 mt-10">
-        <video src="https://res.cloudinary.com/zapier-media/video/upload/q_auto:best/f_auto/v1726860621/Homepage%20%E2%80%94%20Sept%202024/sc01_HP_240917_Connect_v01_edm2pd.mp4" controls={false} muted autoPlay loop className="w-full max-w-4xl"/>
-    </div>
+    return (
+        <div className="w-full h-full relative group">
+            <video
+                src="https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-on-code-screen-close-up-1728-large.mp4"
+                poster="https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-on-code-screen-close-up-1728-0.jpg"
+                controls={false}
+                muted={true}
+                autoPlay={true}
+                loop={true}
+                playsInline={true}
+                className="w-full h-full object-cover rounded-xl"
+            >
+                <source src="https://assets.mixkit.co/videos/preview/mixkit-software-developer-working-on-code-screen-close-up-1728-large.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+            </video>
+            <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
+        </div>
+    )
 }

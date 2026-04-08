@@ -103,11 +103,12 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/integrix
       KAFKA_BROKER: kafka:9092
-      SMTP_ENDPOINT: "smtp.example.com"
-      SMTP_PORT: "587"
-      SMTP_USERNAME: "user"
-      SMTP_PASSWORD: "password"
-      FROM_EMAIL: "noreply@integrix.com"
+      SOL_PRIVATE_KEY: ${SOL_PRIVATE_KEY}
+      SMTP_ENDPOINT: ${SMTP_ENDPOINT}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      FROM_EMAIL: ${FROM_EMAIL}
     depends_on:
       postgres:
         condition: service_healthy

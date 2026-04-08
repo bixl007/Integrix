@@ -5,6 +5,7 @@ import { prismaClient } from "../db";
 import jwt from "jsonwebtoken";
 import { JWT_PASSWORD } from "../config";
 import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
 
 const router = Router();
 
@@ -31,12 +32,25 @@ router.post("/signup", async (req: Request, res: Response) => {
     });
   }
 
-  await prismaClient.user.create({
+  const hashedPassword = await bcrypt.hash(parsedData.data.password, 10);
+
+  const user = await prismaClient.user.create({
     data: {
       email: parsedData.data.username,
-      password: parsedData.data.password, // TODO: hash password
+      password: hashedPassword,
       name: parsedData.data.name,
     },
+  });
+
+  const token = jwt.sign(
+    {
+      id: user.id,
+    },
+    JWT_PASSWORD
+  );
+
+  return res.json({
+    token,
   });
 
   // await sendEmail();
@@ -60,15 +74,24 @@ router.post("/signin", async (req: Request, res: Response) => {
   const user = await prismaClient.user.findFirst({
     where: {
       email: parsedData.data.username,
-      password: parsedData.data.password,
     },
   });
-
+  
   if (!user) {
-    return res.status(400).json({
-      message: "Invalid credentials",
-    });
+      return res.status(400).json({
+          message: "Invalid credentials"
+      })
   }
+
+  const isPasswordValid = await bcrypt.compare(parsedData.data.password, user.password);
+
+  if (!isPasswordValid) {
+      return res.status(400).json({
+          message: "Invalid credentials"
+      })
+  }
+
+
 
   const token = jwt.sign(
     {

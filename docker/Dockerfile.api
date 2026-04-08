@@ -35,5 +35,5 @@ WORKDIR /app/apps/api
 
 EXPOSE 3000
 
-# Run migrations and start
-CMD ["sh", "-c", "cd /app/packages/database && npx prisma migrate deploy && cd /app/apps/api && node dist/index.js"]
+# Run migrations, seed data, and start API
+CMD ["sh", "-c", "cd /app/packages/database && npx prisma migrate deploy && npx prisma db seed && cd /app/apps/api && node dist/index.js"]

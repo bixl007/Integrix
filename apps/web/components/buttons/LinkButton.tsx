@@ -10,8 +10,11 @@ export const LinkButton = ({
   onClick: () => void;
 }) => {
   return (
-    <div className="px-2 py-2 cursor-pointer hover:bg-slate-100 text-sm font-normal text-gray-500 rounded-full hover:shadow-sm flex justify-center items-center" onClick={onClick}>
+    <button
+      onClick={onClick}
+      className="px-4 py-2 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-full transition-all flex items-center justify-center"
+    >
       {children}
-    </div>
+    </button>
   );
 };

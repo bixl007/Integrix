@@ -18,21 +18,21 @@ export const Input = ({
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="flex flex-col gap-1 relative">
-      <label className="text-sm text-gray-500">
-        *{label}
+    <div className="flex flex-col gap-1.5 relative group">
+      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">
+        {label}
       </label>
       <input
         type={type === "password" && showPassword ? "text" : type}
         onChange={onChange}
-        className="mb-3 border border-black rounded py-2 w-full pr-10 p-2"
-        required={required} // ✅ Ensuring required works
+        className="w-full rounded-lg border border-input bg-secondary/50 px-4 py-3 text-sm transition-all focus:border-primary focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 group-hover:bg-secondary/70 placeholder:text-muted-foreground"
+        required={required}
         placeholder={placeholder}
       />
       {type === "password" && (
         <button
           type="button"
-          className="absolute top-9 right-2"
+          className="absolute right-3 top-[2.1rem] text-muted-foreground hover:text-foreground transition-colors"
           onClick={() => setShowPassword(!showPassword)}
         >
           {showPassword ? (
@@ -42,7 +42,7 @@ export const Input = ({
               viewBox="0 0 24 24"
               strokeWidth="1.5"
               stroke="currentColor"
-              className="w-6 h-6"
+              className="size-5"
             >
               <path
                 strokeLinecap="round"
@@ -57,7 +57,7 @@ export const Input = ({
               viewBox="0 0 24 24"
               strokeWidth="1.5"
               stroke="currentColor"
-              className="w-6 h-6"
+              className="size-5"
             >
               <path
                 strokeLinecap="round"
