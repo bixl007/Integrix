@@ -120,6 +120,17 @@ export const ChartIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const GripIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="9" cy="5" r="1" />
+    <circle cx="9" cy="12" r="1" />
+    <circle cx="9" cy="19" r="1" />
+    <circle cx="15" cy="5" r="1" />
+    <circle cx="15" cy="12" r="1" />
+    <circle cx="15" cy="19" r="1" />
+  </Icon>
+);
+
 export const FilterIcon = (p: IconProps) => (
   <Icon {...p}>
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />

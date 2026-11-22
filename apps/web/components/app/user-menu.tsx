@@ -21,7 +21,7 @@ export function UserMenu() {
       triggerClassName="flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors hover:bg-muted"
       trigger={
         <>
-          <Avatar name={user?.name} />
+          <Avatar name={user?.name} src={user?.avatar} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{user?.name ?? 'Loading…'}</span>
             <span className="block truncate text-xs text-muted-foreground">{user?.email}</span>

@@ -8,10 +8,12 @@ import { PlusIcon } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
 import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/cn';
 import { useSession } from '@/lib/session';
 import type { Integration, Zap } from '@/lib/types';
 import { actionFields, stepSummary } from './action-fields';
 import { fieldSuggestions, type ZapSample } from './field-paths';
+import { moveItem } from './reorder';
 import { StepConnector, StepNode } from './step-node';
 import { StepPicker, type PickedStep } from './step-picker';
 import { webhookSender } from './webhook-senders';
@@ -45,10 +47,12 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
     zap
       ? zap.actions
           .toSorted((a, b) => a.sortingOrder - b.sortingOrder)
-          .map((a) => ({ integration: a.type, metadata: a.metadata ?? {} }))
+          .map((a) => ({ id: a.id, integration: a.type, metadata: a.metadata ?? {} }))
       : [undefined],
   );
   const [editing, setEditing] = useState<Editing>(null);
+  // Positions of the action being dragged and the one it is over.
+  const [drag, setDrag] = useState<{ from: number; over: number }>();
   const [error, setError] = useState<string>();
   const [publishing, setPublishing] = useState(false);
   const [templateStatus, setTemplateStatus] = useState<'pending' | 'loaded' | 'unavailable'>(
@@ -100,6 +104,7 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
           availableTriggerId: trigger.integration.id,
           triggerMetadata: trigger.metadata,
           actions: steps.map((s) => ({
+            id: s!.id,
             availableActionId: s!.integration.id,
             actionMetadata: s!.metadata,
           })),
@@ -115,7 +120,14 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
   function onPick(step: PickedStep) {
     if (editing === 'trigger') setTrigger(step);
     else if (typeof editing === 'number')
-      setSteps((s) => s.map((x, i) => (i === editing ? step : x)));
+      setSteps((s) =>
+        s.map((x, i) =>
+          // A step that keeps its connector keeps its saved action, and with it its credential.
+          i === editing
+            ? { ...step, id: x?.integration.id === step.integration.id ? x.id : undefined }
+            : x,
+        ),
+      );
     setEditing(null);
   }
 
@@ -175,22 +187,66 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
         {steps.map((step, i) => (
           <div key={i} className="flex w-full flex-col items-center">
             <StepConnector />
-            <StepNode
-              label="Action"
-              index={i + 2}
-              integration={step?.integration}
-              detail={step && stepSummary(step.integration.id, step.metadata)}
-              onClick={() => setEditing(i)}
-              onRemove={
-                steps.length > 1 ? () => setSteps((s) => s.filter((_, j) => j !== i)) : undefined
-              }
-            />
+            <div
+              draggable={steps.length > 1}
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                // Firefox only starts a drag that carries data.
+                e.dataTransfer.setData('text/plain', String(i));
+                setDrag({ from: i, over: i });
+              }}
+              onDragOver={(e) => {
+                if (!drag) return;
+                e.preventDefault();
+                if (drag.over !== i) setDrag({ from: drag.from, over: i });
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (drag) setSteps((s) => moveItem(s, drag.from, i));
+                setDrag(undefined);
+              }}
+              onDragEnd={() => setDrag(undefined)}
+              className={cn(
+                'w-full max-w-md rounded-lg',
+                drag?.from === i && 'opacity-50',
+                drag && drag.over === i && drag.from !== i && 'ring-2 ring-foreground/40',
+              )}
+            >
+              <StepNode
+                label="Action"
+                index={i + 2}
+                integration={step?.integration}
+                detail={step && stepSummary(step.integration.id, step.metadata)}
+                onClick={() => setEditing(i)}
+                onRemove={
+                  steps.length > 1 ? () => setSteps((s) => s.filter((_, j) => j !== i)) : undefined
+                }
+                reorder={
+                  steps.length > 1
+                    ? {
+                        onMoveUp: i > 0 ? () => setSteps((s) => moveItem(s, i, i - 1)) : undefined,
+                        onMoveDown:
+                          i < steps.length - 1
+                            ? () => setSteps((s) => moveItem(s, i, i + 1))
+                            : undefined,
+                      }
+                    : undefined
+                }
+              />
+            </div>
           </div>
         ))}
         <StepConnector />
         <Button variant="secondary" size="sm" onClick={() => setSteps((s) => [...s, undefined])}>
           <PlusIcon /> Add action
         </Button>
+        {steps.length > 1 && (
+          <p className="mt-6 max-w-md text-center text-xs text-muted-foreground">
+            Drag a step by its handle, or use its arrows, to change the order. Placeholders such as{' '}
+            <code className="font-mono">{'{steps.2.field}'}</code> point at positions, so check them
+            after moving a step.
+          </p>
+        )}
       </div>
 
       {editing !== null && (

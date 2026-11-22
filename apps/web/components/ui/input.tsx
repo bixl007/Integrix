@@ -2,7 +2,7 @@
 
 import { useId, useState, type ComponentProps } from 'react';
 import { cn } from '@/lib/cn';
-import { EyeIcon, EyeOffIcon } from './icons';
+import { ChevronDownIcon, EyeIcon, EyeOffIcon } from './icons';
 
 export const fieldClasses =
   'w-full rounded-md border border-border bg-background px-3 text-sm text-foreground transition-colors placeholder:text-muted-foreground/70 hover:border-border-strong focus:border-foreground/40 focus:outline-none disabled:opacity-50 aria-invalid:border-destructive';
@@ -108,13 +108,17 @@ export function Select({
   const id = useId();
   return (
     <Field id={id} label={label} hint={hint} error={error}>
-      <select
-        id={id}
-        aria-invalid={!!error || undefined}
-        aria-describedby={error || hint ? `${id}-desc` : undefined}
-        className={cn(fieldClasses, 'h-10', className)}
-        {...props}
-      />
+      <div className="relative">
+        {/* The native arrow is replaced so the text and arrow sit on the same gutters as an Input. */}
+        <select
+          id={id}
+          aria-invalid={!!error || undefined}
+          aria-describedby={error || hint ? `${id}-desc` : undefined}
+          className={cn(fieldClasses, 'h-10 cursor-pointer appearance-none pr-9', className)}
+          {...props}
+        />
+        <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground" />
+      </div>
     </Field>
   );
 }

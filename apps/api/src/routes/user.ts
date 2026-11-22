@@ -74,7 +74,7 @@ userRouter.post('/verify-otp', async (req, res) => {
     await prismaClient.user.update({ where: { id: user.id }, data: { emailVerified: true } });
   }
   await startSession(res, user.id);
-  res.json({ user: { name: user.name, email: user.email } });
+  res.json({ user: { name: user.name, email: user.email, avatar: user.avatar } });
 });
 
 userRouter.post('/resend-otp', async (req, res) => {
@@ -104,7 +104,7 @@ userRouter.post('/logout', async (req, res) => {
 userRouter.get('/', authMiddleware, async (req, res) => {
   const user = await prismaClient.user.findUnique({
     where: { id: req.userId },
-    select: { name: true, email: true },
+    select: { name: true, email: true, avatar: true },
   });
   res.json({ user });
 });

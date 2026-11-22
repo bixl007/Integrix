@@ -229,6 +229,7 @@ export default function DocsPage() {
                 .
               </>,
               <>
+                Drag a step by its handle (or use its arrows) to change the order.{' '}
                 <strong>Publish</strong>, open the zap and copy its webhook URL. The zap page also
                 shows a ready-made curl listing every field your steps use, and clicking a step
                 shows its full settings.
@@ -352,8 +353,8 @@ export default function DocsPage() {
             <li>
               Webhook URLs, the bot token and HTTP headers are credentials. They are typed like a
               password, stored on the server, never sent back to the browser (you see dots), and not
-              templated. When you edit a zap, leave the dots to keep the saved value. If you move a
-              step to another position, enter its credential again.
+              templated. When you edit a zap, leave the dots to keep the saved value. A step keeps
+              its credential when you move it to another position.
             </li>
             <li>
               Schedule starts a run every hour or every day, counted from when the zap was created,

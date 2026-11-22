@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { prismaClient } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import {
+  AvatarSchema,
   ChangeEmailSchema,
   ChangePasswordSchema,
   EmailCodeSchema,
@@ -14,14 +15,15 @@ import { revokeOtherSessions } from '../services/session';
 export const profileRouter = Router();
 profileRouter.use(authMiddleware);
 
-const publicProfile = { name: true, email: true } as const;
+const publicProfile = { name: true, email: true, avatar: true } as const;
 
 const currentUser = (id: number) => prismaClient.user.findUniqueOrThrow({ where: { id } });
 
 profileRouter.get('/', async (req, res) => {
   const user = await currentUser(req.userId!);
   // hasPassword lets the UI offer "set" vs "change" password for OAuth-only accounts.
-  res.json({ profile: { name: user.name, email: user.email, hasPassword: !!user.password } });
+  const { name, email, avatar } = user;
+  res.json({ profile: { name, email, avatar, hasPassword: !!user.password } });
 });
 
 profileRouter.patch('/', async (req, res) => {
@@ -33,6 +35,21 @@ profileRouter.patch('/', async (req, res) => {
   const user = await prismaClient.user.update({
     where: { id: req.userId },
     data: { name: parsed.data.name },
+    select: publicProfile,
+  });
+  res.json({ user });
+});
+
+// Sets or clears the profile photo. Only the image type and size are checked; it is shown to its owner only.
+profileRouter.put('/avatar', async (req, res) => {
+  const parsed = AvatarSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ message: 'Use a PNG, JPEG or WebP image of at most 45 KB' });
+    return;
+  }
+  const user = await prismaClient.user.update({
+    where: { id: req.userId },
+    data: { avatar: parsed.data.avatar },
     select: publicProfile,
   });
   res.json({ user });

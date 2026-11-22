@@ -32,6 +32,8 @@ export interface Zap {
 export interface User {
   name: string;
   email: string;
+  /** A small image as a data URL; missing or null shows the initials. */
+  avatar?: string | null;
 }
 
 export interface ZapRunStep {

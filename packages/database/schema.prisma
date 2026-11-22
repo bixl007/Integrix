@@ -20,6 +20,8 @@ model User {
   /// Null for accounts created through OAuth only.
   password      String?
   emailVerified Boolean   @default(false)
+  /// A small square image as a data URL, resized in the browser; null shows the initials.
+  avatar        String?
   createdAt     DateTime  @default(now())
   zaps          Zap[]
   sessions      Session[]

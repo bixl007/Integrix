@@ -23,7 +23,7 @@ authRouter.get('/session', async (req, res) => {
       ? null
       : await prismaClient.user.findUnique({
           where: { id: userId },
-          select: { name: true, email: true },
+          select: { name: true, email: true, avatar: true },
         });
   res.json({ user });
 });

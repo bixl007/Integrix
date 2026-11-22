@@ -13,13 +13,13 @@ resource: ../apps/web/components/ui/
 - **Shape**: `rounded-md` (6px) for controls, `rounded-lg` (12px) for cards and dialogs, 1px borders and minimal shadows.
 - **Primitives**:
   - `button.tsx`: `Button` and `buttonVariants({ variant, size })` for styling links. Variants are primary, secondary, ghost and danger; sizes are sm, md, lg and icon.
-  - `input.tsx`: `Input` (with a password reveal), `Textarea` and `Select` (a native select), each with a label, hint and error wired via `aria-describedby`.
+  - `input.tsx`: `Input` (with a password reveal), `Textarea` and `Select`, each with a label, hint and error wired via `aria-describedby`. `Select` is a native select with its own chevron (`appearance-none`), so its text and arrow sit on the same gutters as an `Input`.
   - `card.tsx`: `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent` and `CardFooter`.
   - `badge.tsx`, `alert.tsx` (with an error or status role), `skeleton.tsx`, `copy-button.tsx`, and `code-block.tsx` (a `pre` with a corner copy button, used for curl snippets).
   - `dialog.tsx`: a native `<dialog>` with focus trap and Esc to close.
   - `theme-switcher.tsx`: a system/light/dark radio group, shown in the marketing footer and the account menu.
   - `menu.tsx`: a dropdown (`Menu`, `MenuItem`, `MenuLink`, `MenuLabel`, `MenuSeparator`) that closes on outside click, Esc or item select.
-  - `avatar.tsx`: initials on `bg-primary`.
+  - `avatar.tsx`: the user's photo when `src` is given, otherwise initials on `bg-primary`.
   - `switch.tsx`: `Switch` is a `role="switch"` button with `checked`, `onChange` and a required accessible `label`.
   - `tabs.tsx`: `Tabs` renders link tabs (`{ label, href, active }`) in a labelled `nav` with `aria-current` on the active one. Each tab is a URL, so it holds no state.
   - `icons.tsx`: inline Lucide-path SVGs. Add icons there instead of installing an icon package.
