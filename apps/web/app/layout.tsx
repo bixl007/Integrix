@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: 'Integrix — Workflow automation', template: '%s · Integrix' },
-  description: 'Turn any webhook into a chain of actions: Solana transfers, emails and more.',
+  description:
+    'Turn a webhook or a schedule into a chain of steps: API calls, Slack, Discord and Telegram messages, emails and Solana transfers.',
 };
 
 export const viewport: Viewport = {

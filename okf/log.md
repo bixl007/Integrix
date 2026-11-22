@@ -1,5 +1,10 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (landing page)
+
+- The landing page now reflects the current product: its integrations grid renders from the connector catalog and the webhook sender presets, and the hero flow, features and steps cover schedules, filters, delays, step outputs, run history and replay, signed webhooks and connections.
+- Docs audit: brought the README (intro, run flow, workspace table, API example, project tree, troubleshooting), the `/docs` overview, quick start, self-hosting and add-connector sections, the connector table in `ARCHITECTURE.md`, the guide descriptions here and in `index.md`, and `CLAUDE.md` and `REVIEW.md` in line with the features added since run history.
+
 ## 2026-11-22 (connections)
 
 - Users can save their own Gmail account and Solana wallet as connections (`Connection` table, `AvailableAction.connectionFields`, migration `connections`), encrypted with the new `CONNECTION_SECRET`. Added `/api/v1/connection`, the Connections card in Settings, a Send from / Pay from select on Email and Solana steps, and an optional `{ connection }` third argument to `ActionHandler`. Steps without a connection keep using the server account. `sendMail` takes an optional Gmail account.

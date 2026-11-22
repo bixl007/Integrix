@@ -1,6 +1,6 @@
 # Integrix
 
-Integrix is a webhook-driven workflow automation platform in the spirit of Zapier. Create a zap with a webhook trigger, chain actions such as **email**, **HTTP requests**, **Slack, Discord and Telegram messages** and **Solana transfers**, and every POST to the zap's URL runs those actions in order. The platform is reliable by design (transactional outbox and Kafka) and sized to run cheaply on a single small host.
+Integrix is a workflow automation platform in the spirit of Zapier. Create a zap with a webhook or schedule trigger and chain steps such as **email**, **HTTP requests**, **Slack, Discord and Telegram messages** and **Solana transfers**, with **filters** and **delays** in between. Every POST to the zap's URL, or every scheduled firing, runs those steps in order. Each run is recorded step by step, a failed run emails you and can be replayed, webhooks can require a signature, and you can connect your own Gmail account and Solana wallet. The platform is reliable by design (transactional outbox and Kafka) and sized to run cheaply on a single small host.
 
 [![CI](https://github.com/bixl007/Integrix/actions/workflows/ci.yml/badge.svg)](https://github.com/bixl007/Integrix/actions/workflows/ci.yml)
 
@@ -21,22 +21,22 @@ flowchart LR
 
 How a run flows:
 
-1. A POST to a zap's URL reaches `hooks`, which writes a `ZapRun` and a `ZapRunOutbox` row in one transaction, so an accepted event is never lost.
-2. `processor` publishes due outbox rows to the Kafka topic `zap-events` (stage 0 for a new run).
+1. A POST to a zap's URL reaches `hooks`, which checks the owner and, when the trigger has a secret, the sender's signature. It then writes a `ZapRun` (with a copy of the zap's steps) and a `ZapRunOutbox` row in one transaction, so an accepted event is never lost.
+2. `processor` publishes due outbox rows to the Kafka topic `zap-events` (stage 0 for a new run, a later stage after a delay or a replay) and starts runs for scheduled zaps that are due.
 3. `worker` runs that stage's action, with `{placeholders}` filled from the webhook body, records the step on the run, publishes stage + 1 and only then commits. Each step retries on its own, and delivery is at-least-once. Each zap's History tab shows its runs, and a failed run emails the zap's owner.
 
 [ARCHITECTURE.md](ARCHITECTURE.md) covers the full design: the data model, the run lifecycle, failure modes, the connector model and the plan for user-configurable connectors.
 
-| Workspace           | Role                                                               |
-| ------------------- | ------------------------------------------------------------------ |
-| `apps/web`          | Next.js 15 frontend, Vercel-style design system                    |
-| `apps/api`          | Auth (email OTP, Google OAuth, cookie sessions) and zap management |
-| `apps/hooks`        | Public webhook receiver; writes the run and outbox row             |
-| `apps/processor`    | Publishes outbox rows to Kafka with idle back-off                  |
-| `apps/worker`       | Executes one action per stage via a handler registry               |
-| `packages/database` | Prisma schema, migrations, seed and shared client                  |
-| `packages/mailer`   | Shared SMTP sender for OTP and Email actions                       |
-| `packages/tsconfig` | Shared TypeScript presets                                          |
+| Workspace           | Role                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/web`          | Next.js 15 frontend, Vercel-style design system                                                   |
+| `apps/api`          | Auth (email OTP, Google OAuth, cookie sessions), zaps, run history and replay, connections, usage |
+| `apps/hooks`        | Public webhook receiver; checks owner and signature, writes the run and outbox row                |
+| `apps/processor`    | Publishes due outbox rows to Kafka with idle back-off and starts scheduled runs                   |
+| `apps/worker`       | Executes one step per stage via a handler registry and records its result                         |
+| `packages/database` | Prisma schema, migrations, built-in catalog, seed, shared client and helpers                      |
+| `packages/mailer`   | Server SMTP sender (OTP, run alerts, Email steps) and per-user Gmail sending                      |
+| `packages/tsconfig` | Shared TypeScript presets                                                                         |
 
 ## Documentation
 
@@ -153,7 +153,7 @@ curl -c cookies.txt -X POST http://localhost:3000/api/v1/user/verify-otp \
   -H "Content-Type: application/json" \
   -d '{"username":"demo@example.com","code":"123456"}'
 
-# 2) List built-ins (ids: webhook | solana, email)
+# 2) List built-ins (triggers: webhook, schedule | actions: email, http, slack, discord, telegram, filter, delay, solana)
 curl http://localhost:3000/api/v1/trigger/available
 curl http://localhost:3000/api/v1/action/available
 
@@ -175,11 +175,14 @@ curl -X POST http://localhost:3000/api/v1/zap \
 curl -X POST http://localhost:3002/hooks/catch/1/YOUR_ZAP_ID \
   -H "Content-Type: application/json" \
   -d '{"name":"Sunny","email":"receiver@example.com","amount":"0.1","address":"G4wJLrP971arCEKvcCJnW6K2932GRtAeHtKRMYSZsSja"}'
+
+# 5) See how the run went, step by step
+curl -b cookies.txt http://localhost:3000/api/v1/zap/YOUR_ZAP_ID/runs
 ```
 
 </details>
 
-Action metadata values are templates. `{field}` and `{nested.field}` resolve against the webhook body, and unknown placeholders are left unchanged. Ready-made zaps (welcome email, GitHub star alert, order confirmation, SOL payout with receipt) are on the in-app [docs page](http://localhost:3001/docs#sample-integrations). Each has a one-click **Use template** button and its API body.
+Action metadata values are templates. `{field}` and `{nested.field}` resolve against the webhook body, `{steps.N.field}` reads the output of an earlier step, and unknown placeholders are left unchanged. Ready-made zaps (welcome email, GitHub star alert, order confirmation, big-order filter, delayed follow-up, Slack, Discord and Telegram alerts, forwarding to your API, SOL payout with receipt) are on the in-app [docs page](http://localhost:3001/docs#sample-integrations). Each has a one-click **Use template** button and its API body.
 
 ## Project structure
 
@@ -188,12 +191,12 @@ Action metadata values are templates. `{field}` and `{nested.field}` resolve aga
 ├── apps/
 │   ├── web/                # app/ (route groups, (marketing)/docs), components/ui (design system), lib/, hooks/
 │   ├── api/                # src/{routes,middleware,schemas,db}
-│   ├── hooks/
+│   ├── hooks/              # src/signatures (webhook signature checks)
 │   ├── processor/
-│   └── worker/             # src/actions (handler registry), parser
+│   └── worker/             # src/actions (handler registry), parser, guarded http client
 ├── packages/
-│   ├── database/           # schema.prisma, migrations/, seed.ts, prisma.config.ts
-│   ├── mailer/             # shared SMTP sender
+│   ├── database/           # schema.prisma, migrations/, src/catalog.ts (built-ins), seed.ts
+│   ├── mailer/             # server SMTP sender and per-user Gmail sending
 │   └── tsconfig/
 ├── docker/                 # service.Dockerfile, web.Dockerfile
 ├── okf/                    # module guides for humans and AI agents
@@ -211,7 +214,11 @@ Docs ship with the code. A feature or behavior change updates the affected `okf/
 
 ## Troubleshooting
 
-- **`insufficient lamports`**: fund the devnet wallet behind `SOL_PRIVATE_KEY` or lower `amount`.
+- **A run failed**: open the zap's History tab for the failing step and its error, fix the cause, then use Replay from failed step.
+- **Webhook answers 401, 403 or 404**: 401 is a wrong or missing signature for a trigger that has a secret, 403 is a zap that is turned off, and 404 is an unknown zap, a wrong user id in the URL or a scheduled zap.
+- **"Connections are not set up on this server"**: set `CONNECTION_SECRET` (`openssl rand -hex 32`) and restart `api` and `worker`.
+- **An HTTP step is refused as a private or internal address**: steps can only call public hosts, not localhost or your own network.
+- **`insufficient lamports`**: fund the devnet wallet the step pays from (its connection, or `SOL_PRIVATE_KEY`) or lower `amount`.
 - **Email not sending**: check the `SMTP_*` values. For Gmail, use an App Password and make `FROM_EMAIL` match the account.
 - **No OTP email arrives**: check the `SMTP_*` values and your spam folder. Locally without SMTP, the code is printed in the API logs.
 - **Google button missing**: set both `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then restart the API.

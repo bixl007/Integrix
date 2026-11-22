@@ -1,7 +1,7 @@
 ---
 type: Module
 title: Processor service
-description: Outbox polling, back-off and Kafka publishing.
+description: Outbox polling, back-off, Kafka publishing of due stages and starting scheduled runs.
 resource: ../apps/processor/
 ---
 

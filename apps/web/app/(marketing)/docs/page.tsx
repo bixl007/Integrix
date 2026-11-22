@@ -190,17 +190,20 @@ export default function DocsPage() {
 
         <Section id="overview" title="Overview">
           <p>
-            Integrix is a webhook-driven automation platform. You create a <strong>zap</strong>: a
-            webhook trigger followed by actions such as sending an email or transferring SOL. Every
-            JSON POST to the zap&apos;s URL starts a <strong>run</strong>, and the actions execute
-            in order in the background, with values from the request inserted wherever you use{' '}
-            <Code>{'{placeholders}'}</Code>.
+            Integrix is an automation platform. You create a <strong>zap</strong>: a trigger (a
+            webhook URL or a schedule) followed by steps such as sending an email, calling an API,
+            posting to Slack, Discord or Telegram, or transferring SOL. Filter and Delay steps
+            decide whether and when a run goes on. Every JSON POST to the zap&apos;s URL, or every
+            scheduled firing, starts a <strong>run</strong>. Its steps execute in order in the
+            background, with values from the request and from earlier steps inserted wherever you
+            use <Code>{'{placeholders}'}</Code>.
           </p>
           <p>
             Runs are durable: a request is written to Postgres together with an outbox row before
             anything is queued, then Kafka carries each step to a worker. A failing step is retried
             on its own a few times without re-running the steps before it. If it still fails, that
-            run stops there and later steps don't run.
+            run stops there, you get an email, and you can replay it from that step once the cause
+            is fixed. Every run and step is listed on the zap&apos;s History tab.
           </p>
         </Section>
 
@@ -215,8 +218,8 @@ export default function DocsPage() {
               </>,
               <>
                 Click <strong>Create Zap</strong>, give it a name if you like, choose the{' '}
-                <strong>Webhook</strong> trigger, then add actions and fill their fields. Or start
-                from a{' '}
+                <strong>Webhook</strong> trigger (or <strong>Schedule</strong> to run it every hour
+                or day), then add steps and fill their fields. Or start from a{' '}
                 <a
                   href="#sample-integrations"
                   className="text-foreground underline underline-offset-4"
@@ -243,7 +246,8 @@ export default function DocsPage() {
           <CodeBlock code={curlFor({ name: 'Ada', email: 'ada@example.com' })} />
           <p>
             The hooks service answers <Code>{'{ "message": "Webhook received" }'}</Code> right away;
-            the actions run a moment later.
+            the steps run a moment later. Open the zap&apos;s <strong>History</strong> tab to see
+            how the run went.
           </p>
         </Section>
 
@@ -694,7 +698,7 @@ caller ──POST──▶ hooks ──▶ Postgres     ZapRun + outbox row, one
         <Section id="self-hosting" title="Self-hosting">
           <CodeBlock
             code={`git clone ${REPO_URL}.git && cd Integrix
-cp .env.example .env   # add SMTP for emails, SOL_PRIVATE_KEY for Solana
+cp .env.example .env   # add SMTP for emails, SOL_PRIVATE_KEY for Solana, CONNECTION_SECRET for connections
 docker compose up --build -d`}
           />
           <p>
@@ -718,11 +722,13 @@ docker compose up --build -d`}
           </p>
           <ol className="flex list-decimal flex-col gap-2 pl-5">
             <li>
-              Seed the id in <Code>packages/database/seed.ts</Code>.
+              Add the id to <Code>packages/database/src/catalog.ts</Code>, with the settings that
+              are credentials.
             </li>
             <li>
               Write a handler in <Code>apps/worker/src/actions/</Code> and register it in{' '}
-              <Code>index.ts</Code>.
+              <Code>index.ts</Code>. Reach external URLs only through the guarded client in{' '}
+              <Code>src/http.ts</Code>.
             </li>
             <li>
               Add its form fields to <Code>apps/web/components/zap/action-fields.ts</Code> and its

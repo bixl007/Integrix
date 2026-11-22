@@ -23,6 +23,9 @@ Review the behavior a user, webhook caller or downstream service will experience
 - Multi-row writes use the transaction client (`tx`), not the global client. The hooks → outbox write must stay atomic.
 - Worker and processor changes keep at-least-once delivery: commit the Kafka offset only after the stage finishes (succeeded, or failed after its bounded retries), never let one failing step block the partition, and keep handlers idempotent where possible.
 - Keep secrets, tokens and payload contents out of logs and error responses.
+- Credentials are never returned: zap responses go through `maskZap`, a credential setting is listed in the catalog's `secretFields`, and a per-user credential lives in a sealed `Connection` that a step references by id.
+- Worker handlers reach external URLs only through `apps/worker/src/http.ts` (10 second limit, no redirects, internal addresses refused). Flag raw `fetch` in a handler.
+- A handler never sleeps or blocks the partition: waiting goes through `delayMs` and the outbox.
 
 ## Web
 

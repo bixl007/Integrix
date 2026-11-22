@@ -1,7 +1,7 @@
 ---
 type: Module
 title: Hooks service
-description: The public webhook endpoint and the transactional outbox write.
+description: The public webhook endpoint: owner and signature checks, the step snapshot and the transactional outbox write.
 resource: ../apps/hooks/
 ---
 

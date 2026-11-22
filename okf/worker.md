@@ -1,7 +1,7 @@
 ---
 type: Module
 title: Worker service
-description: Stage execution, the action registry, the template parser, and email and Solana actions.
+description: Stage execution and step recording, the action registry and its handlers, the template parser and context, the guarded HTTP client and connections.
 resource: ../apps/worker/
 ---
 

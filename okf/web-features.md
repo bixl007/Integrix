@@ -1,7 +1,7 @@
 ---
 type: Module
 title: Web features and helpers
-description: Header and footer, auth form, zap builder, API client and auth store.
+description: Header and footer, auth form, zap builder, run history, connector registries, connections, API client and auth store.
 resource: ../apps/web/
 ---
 

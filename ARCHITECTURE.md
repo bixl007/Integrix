@@ -131,14 +131,18 @@ The context (`apps/worker/src/context.ts`) is the request body plus a `steps` ob
 
 A connector is identified by one string id. Each layer keeps its own small registry keyed by that id, so adding a connector extends registries and never adds `if (type === …)` branches:
 
-| Layer  | Registry                                         | Holds                                                      |
-| ------ | ------------------------------------------------ | ---------------------------------------------------------- |
-| DB     | `packages/database/seed.ts`                      | Catalog row (id, name, image)                              |
-| Worker | `apps/worker/src/actions/index.ts`               | `ActionHandler` → `{ output?, halt?, delayMs? }`           |
-| Web    | `apps/web/components/zap/action-fields.ts`       | Builder form fields per action                             |
-| Web    | `apps/web/components/zap/integration-catalog.ts` | Display name, kind and description                         |
-| Web    | `apps/web/components/zap/integration-icon.tsx`   | Monochrome icon for built-ins                              |
-| Web    | `apps/web/components/zap/zap-templates.ts`       | Sample zaps, shown on `/docs` and prefilled in the builder |
+| Layer  | Registry                                                 | Holds                                                             |
+| ------ | -------------------------------------------------------- | ----------------------------------------------------------------- |
+| DB     | `packages/database/src/catalog.ts` (seeded by `seed.ts`) | Catalog row (id, name, image, `secretFields`, `connectionFields`) |
+| Worker | `apps/worker/src/actions/index.ts`                       | `ActionHandler` → `{ output?, halt?, delayMs? }`                  |
+| Web    | `apps/web/components/zap/action-fields.ts`               | Builder form fields per action and per trigger                    |
+| Web    | `apps/web/components/zap/integration-catalog.ts`         | Display name, kind and description                                |
+| Web    | `apps/web/components/zap/integration-icon.tsx`           | Monochrome icon for built-ins                                     |
+| Web    | `apps/web/components/zap/zap-templates.ts`               | Sample zaps, shown on `/docs` and prefilled in the builder        |
+| Web    | `apps/web/components/zap/trigger-panels.tsx`             | A trigger's card on the zap page and its dashboard summary        |
+| Web    | `apps/web/components/zap/connection-fields.ts`           | What a user enters to connect their own account                   |
+| Web    | `apps/web/components/zap/webhook-senders.ts`             | Webhook senders: checked header, setup notes, example payload     |
+| Hooks  | `apps/hooks/src/signatures.ts`                           | Signature check per webhook sender                                |
 
 The step-by-step checklist lives in [okf/connectors.md](okf/connectors.md). `zap-templates.test.ts` fails if a sample uses an unknown connector or a field set that doesn't match the builder form.
 
@@ -146,7 +150,7 @@ The step-by-step checklist lives in [okf/connectors.md](okf/connectors.md). `zap
 
 The goal is to let users define and configure connectors without a code change. Today's seams are chosen so that change stays additive:
 
-- **Definitions move to data.** Add a field schema (for example, a `fields` JSON column) to `AvailableAction` and `AvailableTrigger`, and serve it from `/action/available` and `/trigger/available`. The builder then renders from the server schema and keeps `action-fields.ts` and `integration-catalog.ts` as fallbacks for built-ins. Code that consumes connectors already goes through these id-keyed lookups, not concrete types.
+- **Definitions move to data.** The first pieces already live in the catalog rows: `secretFields` and `connectionFields` are served from `/action/available` and `/trigger/available`. The remaining step is a full field schema (for example, a `fields` JSON column), so the builder renders from the server and keeps `action-fields.ts` and `integration-catalog.ts` as fallbacks for built-ins. Code that consumes connectors already goes through these id-keyed lookups, not concrete types.
 - **Validation follows the schema.** The API validates `actionMetadata` against the connector's field schema with zod at the boundary, instead of today's flat string map.
 - **Per-user credentials (built for Email and Solana).** A `Connection` row holds a user's own credential for one connector, encrypted at rest, and a step points at it through a `connectionId` setting. A step without one still uses the server-wide `SMTP_*` account or `SOL_PRIVATE_KEY`. The per-step secrets of other connectors (`secretFields`) are masked in responses but stored as plain text; moving them onto connections would encrypt them too.
 - **Handler context (built).** `ActionHandler` takes an optional third argument, `{ connection? }`, holding the decrypted values of the step's connection. Handlers that don't need it ignore it, so they stay substitutable.
@@ -166,6 +170,7 @@ The goal is to let users define and configure connectors without a code change. 
 
 - **Route groups**: `(marketing)` is public and holds the landing page and `/docs`, both static server components. `(auth)` holds login and signup. `(app)` holds the dashboard, integrations, usage, settings and the zap builder and detail pages, behind `RequireAuth`. The zap page has Overview and History tabs; History lists the latest runs and their steps.
 - **Data**: `lib/api.ts` is the only backend client. `useApi` handles GETs and `useSession` is the single session store.
+- **App pages**: the dashboard, a zap's Overview and History tabs, the builder (create and edit), Integrations, Usage (steps run per month) and Settings (profile, sign-in and connections). Nothing polls: History and Usage refresh on demand.
 - **Builder**: `ZapBuilder` picks connectors through `StepPicker` and the `action-fields` registry. It publishes a new zap with `POST /api/v1/zap` and saves an edit (`/zap/[id]/edit`) with `PUT /api/v1/zap/:zapId`. `/zap/create?template=<id>` prefills it from `zap-templates.ts`.
 - **Design system**: monochrome tokens in `globals.css` and primitives in `components/ui`. See [okf/design-system.md](okf/design-system.md).
 
