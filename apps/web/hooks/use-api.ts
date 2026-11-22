@@ -9,9 +9,10 @@ interface State<T> {
   error?: string;
 }
 
-/** GETs `path` on mount and when it changes; pass null to skip. Aborts stale requests. */
+/** GETs `path` on mount, when it changes and on `reload()`; pass null to skip. Aborts stale requests. */
 export function useApi<T>(path: string | null) {
   const [state, setState] = useState<State<T>>({ path: null });
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     if (!path) return;
@@ -24,7 +25,7 @@ export function useApi<T>(path: string | null) {
         }
       });
     return () => controller.abort();
-  }, [path]);
+  }, [path, version]);
 
   // Derived so a new path never shows the previous path's data.
   const current = state.path === path;
@@ -32,5 +33,7 @@ export function useApi<T>(path: string | null) {
     data: current ? state.data : undefined,
     error: current ? state.error : undefined,
     loading: path !== null && !current,
+    // Keeps showing the current data until the refetch lands.
+    reload: () => setVersion((v) => v + 1),
   };
 }

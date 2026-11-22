@@ -1,14 +1,15 @@
 import Link from 'next/link';
+import { buttonVariants } from '@/components/ui/button';
 import { CopyButton } from '@/components/ui/copy-button';
 import { ArrowRightIcon } from '@/components/ui/icons';
 import { webhookUrl } from '@/lib/config';
 import type { Zap } from '@/lib/types';
 import { IntegrationIcon } from './integration-icon';
+import { ZapActions } from './zap-actions';
+import { zapTitle } from './zap-title';
 
-export const zapTitle = (zap: Zap) =>
-  [zap.trigger?.type.name ?? 'Unknown', ...zap.actions.map((a) => a.type.name)].join(' → ');
-
-export function ZapCard({ zap }: { zap: Zap }) {
+/** Dashboard card; `onChange` runs after the zap is renamed or deleted. */
+export function ZapCard({ zap, onChange }: { zap: Zap; onChange: () => void }) {
   const url = webhookUrl(zap.userId, zap.id);
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-background transition-colors before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-foreground before:opacity-0 before:transition-opacity hover:border-border-strong hover:before:opacity-100">
@@ -38,9 +39,20 @@ export function ZapCard({ zap }: { zap: Zap }) {
           {url}
         </p>
       </div>
-      <div className="relative flex items-center justify-between border-t border-border px-5 py-3">
-        <CopyButton value={url} label="Copy URL" variant="ghost" />
-        <ArrowRightIcon className="text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      {/* Only the controls are positioned, so the rest of the footer opens the zap. */}
+      <div className="flex items-center justify-between border-t border-border px-5 py-3">
+        <CopyButton value={url} label="Copy URL" variant="ghost" className="relative" />
+        <div className="flex items-center gap-2">
+          <ZapActions zap={zap} onRenamed={onChange} onDeleted={onChange} side="top" />
+          {/* A real link: the hover transform would lift a plain icon above the stretched link. */}
+          <Link
+            href={`/zap/${zap.id}`}
+            aria-label={`Open ${zapTitle(zap)}`}
+            className={buttonVariants({ variant: 'ghost', size: 'icon', className: 'relative' })}
+          >
+            <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </div>
       </div>
     </article>
   );

@@ -9,10 +9,12 @@ export interface ActionField {
 export const actionFields: Record<string, ActionField[]> = {
   email: [
     { key: 'email', label: 'To', placeholder: '{email}' },
+    { key: 'subject', label: 'Subject', placeholder: 'Your order {order.id} is confirmed' },
     {
       key: 'body',
       label: 'Body',
-      placeholder: 'Hi {name}, your amount is {amount}',
+      // A blank line starts a new paragraph in the sent email.
+      placeholder: 'Hi {name},\n\nThanks for your order of {amount}.\n\nThe Integrix team',
       multiline: true,
     },
   ],

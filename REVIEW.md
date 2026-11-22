@@ -7,6 +7,7 @@ Review the behavior a user, webhook caller or downstream service will experience
 - Each module has one responsibility, and new behavior extends a registry or contract instead of adding type-switches (see [CLAUDE.md](CLAUDE.md#engineering-principles)).
 - Flag duplicated logic that an existing helper already covers, along with speculative abstractions, unused options and dead code.
 - Comments are one or two lines and explain why. Flag paragraph comments and comments that restate the code.
+- Connector data stays id-keyed and serializable, with no per-connector branches in shared code, because connectors will become user-configurable (see [okf/connectors.md](okf/connectors.md)).
 
 ## TypeScript
 
@@ -20,7 +21,7 @@ Review the behavior a user, webhook caller or downstream service will experience
 - Preserve response shapes (`{ zaps }`, `{ zap }`, `{ user }`, `{ otpRequired, email }`, `{ message }`) because the web app depends on them.
 - Auth stays cookie-based: never return session tokens in JSON or store them in `localStorage`. Keep OTP codes and session tokens hashed at rest.
 - Multi-row writes use the transaction client (`tx`), not the global client. The hooks → outbox write must stay atomic.
-- Worker and processor changes keep at-least-once delivery: commit the Kafka offset only after the stage succeeds, and keep handlers idempotent where possible.
+- Worker and processor changes keep at-least-once delivery: commit the Kafka offset only after the stage finishes (succeeded, or failed after its bounded retries), never let one failing step block the partition, and keep handlers idempotent where possible.
 - Keep secrets, tokens and payload contents out of logs and error responses.
 
 ## Web
@@ -37,4 +38,5 @@ Review the behavior a user, webhook caller or downstream service will experience
 ## Before approving
 
 - `bun run check` and `bun run build` pass. Report any check that couldn't run.
+- Docs match the change: the affected `okf/` guide and `okf/log.md`, the `/docs` page for user-facing behavior, `ARCHITECTURE.md` for architectural changes, and the README for setup changes (see [CLAUDE.md](CLAUDE.md#documentation)).
 - The diff has no unrelated edits, generated output, `.env` files or extra lockfiles. Dependency changes come with their `bun.lock` update.

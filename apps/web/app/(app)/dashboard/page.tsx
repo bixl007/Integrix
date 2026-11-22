@@ -17,7 +17,7 @@ const greeting = () => {
 };
 
 export default function DashboardPage() {
-  const { data, error, loading } = useApi<{ zaps: Zap[] }>('/zap');
+  const { data, error, loading, reload } = useApi<{ zaps: Zap[] }>('/zap');
   const session = useSession();
   const user = session.status === 'authenticated' ? session.user : undefined;
   const zaps = data?.zaps ?? [];
@@ -86,7 +86,7 @@ export default function DashboardPage() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {zaps.map((zap) => (
-                  <ZapCard key={zap.id} zap={zap} />
+                  <ZapCard key={zap.id} zap={zap} onChange={reload} />
                 ))}
               </div>
             )}

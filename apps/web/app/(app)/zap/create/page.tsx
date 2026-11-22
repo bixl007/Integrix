@@ -1,29 +1,66 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { PlusIcon } from '@/components/ui/icons';
+import { Input } from '@/components/ui/input';
 import { StepConnector, StepNode } from '@/components/zap/step-node';
 import { StepPicker, type PickedStep } from '@/components/zap/step-picker';
+import { templateSteps, zapTemplates, type ZapTemplate } from '@/components/zap/zap-templates';
 import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
+import { useSession } from '@/lib/session';
 import type { Integration } from '@/lib/types';
 
 // Index of the step being edited: 'trigger' or an action position.
 type Editing = 'trigger' | number | null;
 
 export default function CreateZapPage() {
+  // Read from the live URL: this page is prerendered, so the searchParams prop would be empty.
+  const templateId = useSearchParams().get('template');
+  const template = zapTemplates.find((t) => t.id === templateId);
+  // Keyed so switching templates (or to a blank zap) starts from fresh builder state.
+  return <ZapBuilder key={template?.id ?? 'blank'} template={template} />;
+}
+
+function ZapBuilder({ template }: { template?: ZapTemplate }) {
   const router = useRouter();
+  const session = useSession();
   const triggers = useApi<{ availableTriggers: Integration[] }>('/trigger/available');
   const actions = useApi<{ availableActions: Integration[] }>('/action/available');
 
+  const [name, setName] = useState(template?.name ?? '');
   const [trigger, setTrigger] = useState<PickedStep>();
   const [steps, setSteps] = useState<(PickedStep | undefined)[]>([undefined]);
   const [editing, setEditing] = useState<Editing>(null);
   const [error, setError] = useState<string>();
   const [publishing, setPublishing] = useState(false);
+  const [templateStatus, setTemplateStatus] = useState<'pending' | 'loaded' | 'unavailable'>(
+    'pending',
+  );
+
+  // Prefill a docs template (?template=<id>) once, after both integration lists load.
+  if (
+    template &&
+    templateStatus === 'pending' &&
+    triggers.data &&
+    actions.data &&
+    session.status === 'authenticated'
+  ) {
+    const resolved = templateSteps(
+      template,
+      triggers.data.availableTriggers,
+      actions.data.availableActions,
+      session.user.email,
+    );
+    setTemplateStatus(resolved ? 'loaded' : 'unavailable');
+    if (resolved) {
+      setTrigger(resolved.trigger);
+      setSteps(resolved.steps);
+    }
+  }
 
   const ready = !!trigger && steps.length > 0 && steps.every(Boolean);
 
@@ -35,6 +72,7 @@ export default function CreateZapPage() {
       await api('/zap', {
         method: 'POST',
         body: {
+          name,
           availableTriggerId: trigger.integration.id,
           triggerMetadata: trigger.metadata,
           actions: steps.map((s) => ({
@@ -63,7 +101,9 @@ export default function CreateZapPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">New Zap</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pick a trigger, then chain actions in run order.
+            {template && templateStatus === 'loaded'
+              ? `Loaded the "${template.name}" template. Review each step, then publish.`
+              : 'Pick a trigger, then chain actions in run order.'}
           </p>
         </div>
         <Button onClick={publish} disabled={!ready} loading={publishing}>
@@ -71,9 +111,26 @@ export default function CreateZapPage() {
         </Button>
       </div>
 
+      {templateStatus === 'unavailable' && (
+        <Alert variant="info" className="mb-6">
+          This template needs an integration that isn&apos;t available on this server.
+        </Alert>
+      )}
+
       {(error ?? triggers.error ?? actions.error) && (
         <Alert className="mb-6">{error ?? triggers.error ?? actions.error}</Alert>
       )}
+
+      <div className="mb-6">
+        <Input
+          label="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={80}
+          placeholder="Untitled zap"
+          hint="Optional. Without a name, the zap shows its step names."
+        />
+      </div>
 
       <div className="flex flex-col items-center rounded-lg border border-border bg-background-subtle bg-[radial-gradient(var(--color-border-strong)_1px,transparent_1px)] [background-size:16px_16px] px-4 py-10">
         <StepNode

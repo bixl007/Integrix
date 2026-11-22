@@ -57,6 +57,8 @@ model OtpCode {
 
 model Zap {
   id        String   @id @default(uuid())
+  /// Custom title; null shows the "Trigger → Action" title.
+  name      String?
   triggerId String
   userId    Int
   trigger   Trigger?
@@ -71,13 +73,13 @@ model Trigger {
   zapId     String           @unique
   triggerId String
   type      AvailableTrigger @relation(fields: [triggerId], references: [id])
-  zap       Zap              @relation(fields: [zapId], references: [id])
+  zap       Zap              @relation(fields: [zapId], references: [id], onDelete: Cascade)
 }
 
 model Action {
   id           String          @id @default(uuid())
   zapId        String
-  zap          Zap             @relation(fields: [zapId], references: [id])
+  zap          Zap             @relation(fields: [zapId], references: [id], onDelete: Cascade)
   actionId     String
   type         AvailableAction @relation(fields: [actionId], references: [id])
   sortingOrder Int             @default(0)
@@ -102,12 +104,12 @@ model ZapRun {
   id           String        @id @default(uuid())
   zapId        String
   metadata     Json
-  zap          Zap           @relation(fields: [zapId], references: [id])
+  zap          Zap           @relation(fields: [zapId], references: [id], onDelete: Cascade)
   zapRunOutbox ZapRunOutbox?
 }
 
 model ZapRunOutbox {
   id       String @id @default(uuid())
   zapRunId String @unique
-  zapRun   ZapRun @relation(fields: [zapRunId], references: [id])
+  zapRun   ZapRun @relation(fields: [zapRunId], references: [id], onDelete: Cascade)
 }
