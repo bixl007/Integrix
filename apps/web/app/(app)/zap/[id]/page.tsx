@@ -16,6 +16,7 @@ import { StepDetailsDialog } from '@/components/zap/step-details-dialog';
 import { StepConnector, StepNode } from '@/components/zap/step-node';
 import { samplePayload, webhookCurl } from '@/components/zap/sample-payload';
 import { ZapActions } from '@/components/zap/zap-actions';
+import { ZapToggle } from '@/components/zap/zap-toggle';
 import { zapTitle } from '@/components/zap/zap-title';
 import { useApi } from '@/hooks/use-api';
 import { webhookUrl } from '@/lib/config';
@@ -47,7 +48,7 @@ export default function ZapDetailsPage() {
       ) : !zap ? (
         <Alert variant="info">This zap does not exist or belongs to another account.</Alert>
       ) : (
-        <ZapDetails zap={zap} onRenamed={reload} onDeleted={() => router.push('/dashboard')} />
+        <ZapDetails zap={zap} onChanged={reload} onDeleted={() => router.push('/dashboard')} />
       )}
     </div>
   );
@@ -55,11 +56,11 @@ export default function ZapDetailsPage() {
 
 function ZapDetails({
   zap,
-  onRenamed,
+  onChanged,
   onDeleted,
 }: {
   zap: Zap;
-  onRenamed: () => void;
+  onChanged: () => void;
   onDeleted: () => void;
 }) {
   const [viewing, setViewing] = useState<{ action: ZapAction; index: number }>();
@@ -79,13 +80,18 @@ function ZapDetails({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight break-words">{zapTitle(zap)}</h1>
-            <Badge variant="success">Active</Badge>
+            <Badge variant={zap.enabled ? 'success' : 'neutral'}>
+              {zap.enabled ? 'On' : 'Off'}
+            </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Created {new Date(zap.createdAt).toLocaleString()}
           </p>
         </div>
-        <ZapActions zap={zap} onRenamed={onRenamed} onDeleted={onDeleted} />
+        <div className="flex items-center gap-2">
+          <ZapToggle zap={zap} onChange={onChanged} />
+          <ZapActions zap={zap} onRenamed={onChanged} onDeleted={onDeleted} />
+        </div>
       </header>
 
       <Tabs

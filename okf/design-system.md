@@ -20,6 +20,7 @@ resource: ../apps/web/components/ui/
   - `theme-switcher.tsx`: a system/light/dark radio group, shown in the marketing footer and the account menu.
   - `menu.tsx`: a dropdown (`Menu`, `MenuItem`, `MenuLink`, `MenuLabel`, `MenuSeparator`) that closes on outside click, Esc or item select.
   - `avatar.tsx`: initials on `bg-primary`.
+  - `switch.tsx`: `Switch` is a `role="switch"` button with `checked`, `onChange` and a required accessible `label`.
   - `tabs.tsx`: `Tabs` renders link tabs (`{ label, href, active }`) in a labelled `nav` with `aria-current` on the active one. Each tab is a URL, so it holds no state.
   - `icons.tsx`: inline Lucide-path SVGs. Add icons there instead of installing an icon package.
 - Primitives hold no business logic or data fetching. Extend through props and `className` (merged by `cn`), not by forking a primitive.

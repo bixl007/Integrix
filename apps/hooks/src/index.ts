@@ -1,4 +1,4 @@
-import { PrismaClient } from '@integrix/database';
+import { PrismaClient, snapshotActions } from '@integrix/database';
 import express from 'express';
 
 const PORT = Number(process.env.HOOKS_PORT ?? 3002);
@@ -14,9 +14,23 @@ app.get('/health', (_req, res) => {
 
 // Stores the run and its outbox row in one transaction; the processor publishes it.
 app.post('/hooks/catch/:userId/:zapId', async (req, res) => {
+  const zap = await client.zap.findUnique({
+    where: { id: req.params.zapId },
+    include: { actions: { include: { type: true } } },
+  });
+  if (!zap) {
+    res.status(404).json({ message: 'Zap not found' });
+    return;
+  }
+  if (!zap.enabled) {
+    res.status(403).json({ message: 'This zap is turned off' });
+    return;
+  }
+
   await client.$transaction(async (tx) => {
     const run = await tx.zapRun.create({
-      data: { zapId: req.params.zapId, metadata: req.body ?? {} },
+      // The steps are copied onto the run, so editing the zap never changes a run in progress.
+      data: { zapId: zap.id, metadata: req.body ?? {}, actions: snapshotActions(zap.actions) },
     });
     await tx.zapRunOutbox.create({ data: { zapRunId: run.id } });
   });
