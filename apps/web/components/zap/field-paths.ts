@@ -9,10 +9,14 @@ const MAX_DEPTH = 4;
 // A key with these characters can't be written as a `{dotted.path}` placeholder.
 const UNADDRESSABLE = /[.{}]/;
 
-/** Dotted paths to the values in `value`. An array is one value: templates insert it as JSON. */
+/** Dotted paths to the values in `value`. An array is offered whole (inserted as JSON) and by its first item. */
 export function fieldPaths(value: unknown, prefix = '', depth = 0): string[] {
-  if (value === null || typeof value !== 'object' || Array.isArray(value) || depth >= MAX_DEPTH) {
+  if (value === null || typeof value !== 'object' || depth >= MAX_DEPTH) {
     return prefix ? [prefix] : [];
+  }
+  if (Array.isArray(value)) {
+    const first = value.length ? fieldPaths(value[0], prefix ? `${prefix}.0` : '0', depth + 1) : [];
+    return [...(prefix ? [prefix] : []), ...first];
   }
   return Object.entries(value)
     .filter(([key]) => !UNADDRESSABLE.test(key))

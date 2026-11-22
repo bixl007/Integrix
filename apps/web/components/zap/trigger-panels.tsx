@@ -6,6 +6,7 @@ import { webhookUrl } from '@/lib/config';
 import type { Zap } from '@/lib/types';
 import { actionFields } from './action-fields';
 import { samplePayload, webhookCurl } from './sample-payload';
+import { webhookSender } from './webhook-senders';
 
 function WebhookPanel({ zap }: { zap: Zap }) {
   const url = webhookUrl(zap.userId, zap.id);
@@ -31,6 +32,11 @@ function WebhookPanel({ zap }: { zap: Zap }) {
           <CopyButton value={url} />
         </div>
         <CodeBlock code={curl} />
+        <p className="text-sm text-muted-foreground">
+          {zap.trigger?.metadata?.secret
+            ? `Only signed requests are accepted. Checked header: ${webhookSender(zap.trigger.metadata.sender).verifiedBy}.`
+            : 'Anyone who has this URL can start a run. Add a signing secret to the trigger under Edit steps to require signed requests.'}
+        </p>
       </CardContent>
     </Card>
   );

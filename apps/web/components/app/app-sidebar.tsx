@@ -9,6 +9,7 @@ import {
   BookIcon,
   BracesIcon,
   BugIcon,
+  ChartIcon,
   ExternalLinkIcon,
   GridIcon,
   PlugIcon,
@@ -35,6 +36,7 @@ const nav: { href: string; label: string; Icon: IconType; match: (path: string) 
     Icon: PlugIcon,
     match: (p) => p === '/integrations',
   },
+  { href: '/usage', label: 'Usage', Icon: ChartIcon, match: (p) => p === '/usage' },
   { href: '/settings', label: 'Settings', Icon: SettingsIcon, match: (p) => p === '/settings' },
 ];
 

@@ -6,6 +6,7 @@ import { actionRouter } from './routes/action';
 import { authRouter } from './routes/auth';
 import { profileRouter } from './routes/profile';
 import { triggerRouter } from './routes/trigger';
+import { usageRouter } from './routes/usage';
 import { userRouter } from './routes/user';
 import { zapRouter } from './routes/zap';
 
@@ -24,6 +25,7 @@ app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1/zap', zapRouter);
 app.use('/api/v1/trigger', triggerRouter);
 app.use('/api/v1/action', actionRouter);
+app.use('/api/v1/usage', usageRouter);
 app.use(errorHandler);
 
 app.listen(PORT, () => {

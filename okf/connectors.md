@@ -18,7 +18,7 @@ A connector is one string id (`webhook`, `schedule`, `email`, `filter`, `delay`,
 5. Optional: add a sample to `zap-templates.ts`. It appears on `/docs` and opens prefilled in the builder through `/zap/create?template=<id>`.
 6. Docs: the `/docs` connector reference renders from steps 3 and 4. Add any server env vars to `.env.example` and the README table, and note behavior worth knowing (limits, costs, side effects) in the docs page connector notes.
 
-Add a trigger the same way, using `triggers` in the seed and `kind: 'trigger'`. A trigger's settings go in the same `action-fields.ts` registry under its id and are stored as `Trigger.metadata`. Two triggers exist: `webhook`, whose intake is `hooks`, and `schedule`, whose runs the processor starts. A new trigger type needs its own intake that writes `ZapRun` (with `snapshotActions`) and `ZapRunOutbox` in one transaction. Give it a card on the zap page and a dashboard summary in `trigger-panels.tsx`.
+Add a trigger the same way, using `triggers` in the seed and `kind: 'trigger'`. A trigger's settings go in the same `action-fields.ts` registry under its id and are stored as `Trigger.metadata`. Two triggers exist: `webhook`, whose intake is `hooks` (its `sender` and `secret` settings select and key the signature check), and `schedule`, whose runs the processor starts. A new trigger type needs its own intake that writes `ZapRun` (with `snapshotActions`) and `ZapRunOutbox` in one transaction. Give it a card on the zap page and a dashboard summary in `trigger-panels.tsx`.
 
 ## Rules
 

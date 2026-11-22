@@ -5,11 +5,16 @@ const prisma = new PrismaClient();
 
 // Idempotent: safe to run on every dev start and container boot.
 async function main() {
+  // secretFields is code-owned, so existing rows are brought up to date as well.
   for (const t of builtInTriggers) {
-    await prisma.availableTrigger.upsert({ where: { id: t.id }, update: {}, create: t });
+    const secretFields = t.secretFields ?? [];
+    await prisma.availableTrigger.upsert({
+      where: { id: t.id },
+      update: { secretFields },
+      create: { ...t, secretFields },
+    });
   }
   for (const a of builtInActions) {
-    // secretFields is code-owned, so existing rows are brought up to date as well.
     const secretFields = a.secretFields ?? [];
     await prisma.availableAction.upsert({
       where: { id: a.id },

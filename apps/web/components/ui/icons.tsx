@@ -114,6 +114,12 @@ export const SendIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const ChartIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 3v16a2 2 0 0 0 2 2h16M8 17v-5M13 17V8M18 17v-9" />
+  </Icon>
+);
+
 export const FilterIcon = (p: IconProps) => (
   <Icon {...p}>
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />

@@ -10,6 +10,7 @@ import { actionFields } from '@/components/zap/action-fields';
 import { integrationCatalog } from '@/components/zap/integration-catalog';
 import { IntegrationIcon } from '@/components/zap/integration-icon';
 import { webhookCurl } from '@/components/zap/sample-payload';
+import { webhookSenders } from '@/components/zap/webhook-senders';
 import { templateRequestBody, zapTemplates } from '@/components/zap/zap-templates';
 import { cn } from '@/lib/cn';
 import { links, REPO_URL } from '@/lib/links';
@@ -29,6 +30,7 @@ const toc = [
   { id: 'connectors', label: 'Connectors' },
   { id: 'sample-integrations', label: 'Sample integrations' },
   { id: 'webhooks', label: 'Calling a webhook' },
+  { id: 'senders', label: 'Webhook senders' },
   { id: 'run-history', label: 'Run history' },
   { id: 'api', label: 'API reference' },
   { id: 'architecture', label: 'Architecture' },
@@ -131,6 +133,7 @@ const endpoints: { method: string; path: string; returns: string; note: string }
     returns: '{ ok }',
     note: 'Re-queues a failed run from its failed step',
   },
+  { method: 'GET', path: '/usage', returns: '{ months }', note: 'Steps run per month, last 6' },
   { method: 'GET', path: '/profile', returns: '{ profile }', note: 'Name, email, password set' },
 ];
 
@@ -471,10 +474,56 @@ export default function DocsPage() {
               finishes with the steps it started with.
             </li>
             <li>
-              The URL is unauthenticated. Treat it like a secret, especially for zaps that move
-              funds.
+              Without a signing secret, anyone who has the URL can start a run, so treat the URL
+              like a password. Set a secret on the webhook trigger (Edit steps, then the trigger) to
+              accept signed requests only; anything else answers <Code>401</Code>.
+            </li>
+            <li>
+              The user id in the URL must be the zap owner&apos;s. A URL with another id answers{' '}
+              <Code>404</Code>, the same as an unknown zap.
             </li>
           </ul>
+        </Section>
+
+        <Section id="senders" title="Webhook senders">
+          <p>
+            Pick the sender on the webhook trigger and give it the same secret you set on the
+            sender&apos;s side. Each request is then checked against that sender&apos;s signature
+            header, computed over the exact body it sent. For a sender that isn&apos;t listed, use{' '}
+            <strong>Any sender</strong>.
+          </p>
+          <Table head={['Sender', 'Checked header', 'Setup']}>
+            {webhookSenders.map((s) => (
+              <tr key={s.id}>
+                <Td>{s.name}</Td>
+                <Td mono>{s.verifiedBy}</Td>
+                <Td>{s.setup}</Td>
+              </tr>
+            ))}
+          </Table>
+          <p>
+            Example bodies, trimmed to the fields you are most likely to use. The builder suggests
+            these fields before your zap has received its first request.
+          </p>
+          <div className="flex flex-col gap-2">
+            {webhookSenders
+              .filter((s) => s.samplePayload)
+              .map((s) => (
+                <details key={s.id} className="rounded-md border border-border">
+                  <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium text-foreground hover:bg-background-subtle">
+                    {s.name}
+                  </summary>
+                  <div className="border-t border-border p-3">
+                    <CodeBlock code={JSON.stringify(s.samplePayload, null, 2)} />
+                  </div>
+                </details>
+              ))}
+          </div>
+          <p>
+            A sender that posts a list, such as Helius, is read by position:{' '}
+            <Code>{'{0.signature}'}</Code> is the signature of the first item, and{' '}
+            <Code>{'{items.1.name}'}</Code> reads the second entry of a list inside the body.
+          </p>
         </Section>
 
         <Section id="run-history" title="Run history">
@@ -497,6 +546,10 @@ export default function DocsPage() {
             the run stops and the zap&apos;s owner gets an email with the step, the error and a link
             to the history. A step with no handler on the server is shown as Skipped and the run
             continues.
+          </p>
+          <p>
+            The <strong>Usage</strong> page in the app shows how many steps your zaps ran in each of
+            the last six months (UTC).
           </p>
           <p>
             A failed run has a <strong>Replay from failed step</strong> button. It runs the step at

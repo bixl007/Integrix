@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test';
-import { builtInActions } from '../../../../packages/database/src/catalog';
+import { builtInActions, builtInTriggers } from '../../../../packages/database/src/catalog';
 import { actionFields } from './action-fields';
 
 // The API masks what the seed lists; the form decides what is typed as a password. They must agree.
-test('secret fields match the server catalog for every built-in action', () => {
-  for (const action of builtInActions) {
+test('secret fields match the server catalog for every built-in connector', () => {
+  for (const action of [...builtInTriggers, ...builtInActions]) {
     const secrets = (actionFields[action.id] ?? []).filter((f) => f.secret).map((f) => f.key);
     expect([action.id, secrets.sort()]).toEqual([action.id, (action.secretFields ?? []).sort()]);
   }

@@ -11,7 +11,12 @@ const isObject = (value: JsonValue | undefined): value is JsonObject =>
 
 /** Template values for a stage: the request body plus earlier step outputs under `steps.<step number>`. */
 export function templateContext(payload: JsonValue, steps: readonly StepOutput[], stage: number) {
-  const body = isObject(payload) ? payload : {};
+  // An array body (some senders post a list of events) is read by position: {0.signature}.
+  const body: JsonObject = isObject(payload)
+    ? payload
+    : Array.isArray(payload)
+      ? Object.fromEntries(payload.entries())
+      : {};
   const outputs: JsonObject = {};
   for (const step of steps) {
     // Steps are numbered like the UI: the trigger is step 1, so stage 0 is step 2.

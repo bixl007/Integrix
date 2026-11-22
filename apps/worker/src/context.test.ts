@@ -25,5 +25,10 @@ test("keeps a body's own steps object and tolerates a body that is not an object
   expect(templateContext({ steps: { count: 3 } }, steps, 1)).toEqual({
     steps: { count: 3, '2': { signature: 'abc' } },
   });
-  expect(templateContext([1, 2], steps, 1)).toEqual({ steps: { '2': { signature: 'abc' } } });
+  expect(templateContext('text', steps, 1)).toEqual({ steps: { '2': { signature: 'abc' } } });
+});
+
+test('an array body is addressed by position', () => {
+  const context = templateContext([{ signature: 'sig1' }], steps, 0);
+  expect(parse('{0.signature}', context)).toBe('sig1');
 });

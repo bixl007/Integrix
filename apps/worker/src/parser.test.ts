@@ -21,6 +21,13 @@ describe('parse', () => {
     expect(parse('{steps.2.signature}', { steps: { '2': { signature: 'abc' } } })).toBe('abc');
   });
 
+  test('reads array items by position', () => {
+    const payload = { items: [{ name: 'pen' }, { name: 'ink' }] };
+    expect(parse('{items.1.name} {items.0.name} {items.5.name} {items.x}', payload)).toBe(
+      'ink pen {items.5.name} {items.x}',
+    );
+  });
+
   test('leaves unknown or unterminated placeholders untouched', () => {
     expect(parse('{missing} and {open', { a: 1 })).toBe('{missing} and {open');
   });
