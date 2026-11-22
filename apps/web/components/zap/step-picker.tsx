@@ -24,7 +24,7 @@ interface StepPickerProps {
   onClose: () => void;
 }
 
-/** Two-step dialog: choose an integration, then fill its config fields (actions only). */
+/** Two-step dialog: choose an integration, then fill its config fields, if it has any. */
 export function StepPicker({
   kind,
   items,
@@ -35,7 +35,7 @@ export function StepPicker({
 }: StepPickerProps) {
   const [selected, setSelected] = useState<Integration | undefined>(initial?.integration);
   const fields = selected ? (actionFields[selected.id] ?? []) : [];
-  const configuring = kind === 'action' && selected && fields.length > 0;
+  const configuring = selected && fields.length > 0;
 
   // Fields are uncontrolled, so a suggestion is written straight into the last edited one.
   const formRef = useRef<HTMLFormElement>(null);
@@ -50,7 +50,7 @@ export function StepPicker({
   };
 
   const choose = (item: Integration) => {
-    if (kind === 'action' && actionFields[item.id]?.length) setSelected(item);
+    if (actionFields[item.id]?.length) setSelected(item);
     else onPick({ integration: item, metadata: {} });
   };
 
@@ -64,7 +64,7 @@ export function StepPicker({
           : `Choose ${kind === 'trigger' ? 'a trigger' : 'an action'}`
       }
       description={
-        configuring
+        configuring && kind === 'action'
           ? 'Use {field} or {nested.field} for request values and {steps.2.field} for the output of an earlier step.'
           : undefined
       }

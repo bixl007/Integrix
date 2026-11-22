@@ -68,12 +68,18 @@ model Zap {
   zapRuuns  ZapRun[]
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  /// When a scheduled zap fires next; null for zaps without a schedule.
+  nextRunAt DateTime?
+
+  @@index([nextRunAt])
 }
 
 model Trigger {
   id        String           @id @default(uuid())
   zapId     String           @unique
   triggerId String
+  /// Flat string settings of the trigger, e.g. { "interval": "hourly" }.
+  metadata  Json             @default("{}")
   type      AvailableTrigger @relation(fields: [triggerId], references: [id])
   zap       Zap              @relation(fields: [zapId], references: [id], onDelete: Cascade)
 }

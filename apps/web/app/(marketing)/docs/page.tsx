@@ -45,12 +45,12 @@ const concepts: { term: string; body: string }[] = [
   },
   {
     term: 'Trigger',
-    body: 'What starts a zap. Today that is a webhook: every zap gets its own URL.',
+    body: 'What starts a zap: a webhook (every zap gets its own URL) or a schedule that runs it every hour or every day.',
   },
   { term: 'Action', body: 'A step that does something, such as sending an email or SOL.' },
   {
     term: 'Connector',
-    body: 'A trigger or action type you can pick in the builder (Webhook, Email, Filter, Solana).',
+    body: 'A trigger or action type you can pick in the builder (Webhook, Schedule, Email, Filter, Delay, Solana).',
   },
   {
     term: 'Run',
@@ -125,6 +125,12 @@ const endpoints: { method: string; path: string; returns: string; note: string }
     returns: '{ runs }',
     note: 'Latest 20 runs with their steps',
   },
+  {
+    method: 'POST',
+    path: '/zap/:zapId/runs/:runId/replay',
+    returns: '{ ok }',
+    note: 'Re-queues a failed run from its failed step',
+  },
   { method: 'GET', path: '/profile', returns: '{ profile }', note: 'Name, email, password set' },
 ];
 
@@ -134,6 +140,7 @@ const runStatuses: { status: string; meaning: string }[] = [
     meaning: 'The request was recorded and its first step has not finished yet.',
   },
   { status: 'Running', meaning: 'At least one step finished and more are still to run.' },
+  { status: 'Waiting', meaning: 'A Delay step is holding the run until its time is up.' },
   { status: 'Success', meaning: 'Every step finished.' },
   {
     status: 'Failed',
@@ -302,13 +309,25 @@ export default function DocsPage() {
                       ))}
                     </Table>
                   ) : (
-                    <p className="mt-2 text-sm">No configuration. The zap URL is the trigger.</p>
+                    <p className="mt-2 text-sm">No settings.</p>
                   )}
                 </div>
               );
             })}
           </div>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
+            <li>
+              Schedule starts a run every hour or every day, counted from when the zap was created,
+              edited or switched back on. There is no request body, but templates can read{' '}
+              <Code>{'{scheduledFor}'}</Code>. If the server was down when a run was due, one run
+              starts when it is back and the missed ones are skipped. A scheduled zap has no webhook
+              URL.
+            </li>
+            <li>
+              Delay pauses a run for an amount of minutes, hours or days (decimals allowed, at most
+              30 days) and shows the run as Waiting. Nothing is kept running while it waits. Its
+              output is <Code>resumeAt</Code>.
+            </li>
             <li>
               Filter compares <Code>field</Code> with <Code>value</Code> (both templates). The{' '}
               <Code>operator</Code> is one of <Code>equals</Code>, <Code>not_equals</Code>,{' '}
@@ -454,6 +473,12 @@ export default function DocsPage() {
             to the history. A step with no handler on the server is shown as Skipped and the run
             continues.
           </p>
+          <p>
+            A failed run has a <strong>Replay from failed step</strong> button. It runs the step at
+            the failed position again with the run&apos;s original request and the zap&apos;s
+            current steps, then continues, so you can fix a setting first and then replay. Steps
+            that already passed are not repeated, and their outputs stay available to later steps.
+          </p>
         </Section>
 
         <Section id="api" title="API reference">
@@ -493,7 +518,7 @@ export default function DocsPage() {
                             ▼
 caller ──POST──▶ hooks ──▶ Postgres     ZapRun + outbox row, one transaction
                             │
-                        processor       polls the outbox, publishes due stages
+                        processor       publishes due stages, starts scheduled runs
                             ▼
                   Kafka "zap-events" ◀──── stage n+1 ────┐
                             │                            │

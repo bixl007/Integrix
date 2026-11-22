@@ -1,5 +1,9 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (delay, schedule, replay)
+
+- Added the `delay` action (handlers may return `delayMs`; the worker parks the next stage in the outbox and the run shows as `waiting`) and the `schedule` trigger (`Trigger.metadata`, `Zap.nextRunAt`, migration `delay_schedule`; the processor starts due runs inside its existing loop). Hooks now accepts only webhook-triggered zaps. Added `POST /api/v1/zap/:zapId/runs/:runId/replay` and the Replay button, trigger settings in the builder, and the `trigger-panels.tsx` registries.
+
 ## 2026-11-22 (filter, step outputs, field picker)
 
 - Added the `filter` connector (seed, worker `filterOperators` registry, form with a select, catalog, icon, a sample template). Templates can read earlier step outputs as `{steps.N.field}` through the worker's new template context, and Email now returns `{ to, subject }`. Added `GET /api/v1/zap/:zapId/sample`, the field suggestions in the step dialog (`field-paths.ts`), the `Select` primitive, and `options`/`optional` on action fields.

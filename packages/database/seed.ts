@@ -10,6 +10,8 @@ const triggers = [
     image:
       'https://imgs.search.brave.com/jt-nuqrQTc8sUDegjW5IknnypbZm-onodGbopopEoiQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9jZG4u/aWNvbnNjb3V0LmNv/bS9pY29uL2ZyZWUv/cG5nLTI1Ni9mcmVl/LXdlYmhvb2tzLWlj/b24tZG93bmxvYWQt/aW4tc3ZnLXBuZy1n/aWYtZmlsZS1mb3Jt/YXRzLS1icmFuZC1j/b21wYW55LWxvZ28t/d29ybGQtbG9nb3Mt/dm9sLTMtcGFjay1p/Y29ucy0yODI0MjUu/cG5nP2Y9d2VicCZ3/PTI1Ng',
   },
+  // Built-in steps render a local icon in the web app, so they need no image.
+  { id: 'schedule', name: 'Schedule', image: '' },
 ];
 
 const actions = [
@@ -25,8 +27,8 @@ const actions = [
     image:
       'https://imgs.search.brave.com/vMXD5zEPHVEvZrWv_KRbb9E1hfOusHVCxhuYK1qyf4g/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/cG5nbWFydC5jb20v/ZmlsZXMvMTUvRW1h/aWwtU3ltYm9sLVBO/Ry1GaWxlLnBuZw',
   },
-  // Built-in steps render a local icon in the web app, so they need no image.
   { id: 'filter', name: 'Filter', image: '' },
+  { id: 'delay', name: 'Delay', image: '' },
 ];
 
 async function main() {

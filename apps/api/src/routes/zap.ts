@@ -1,3 +1,4 @@
+import { firstRunAt, scheduleIntervals, snapshotActions } from '@integrix/database';
 import { Router } from 'express';
 import { prismaClient } from '../db';
 import { authMiddleware } from '../middleware/auth';
@@ -10,6 +11,10 @@ const zapInclude = {
   trigger: { include: { type: true } },
 } as const;
 
+/** True when trigger settings name a schedule interval the processor doesn't know. */
+const unknownInterval = (triggerMetadata: Record<string, string>) =>
+  triggerMetadata.interval !== undefined && !(triggerMetadata.interval in scheduleIntervals);
+
 zapRouter.post('/', authMiddleware, async (req, res) => {
   const parsed = ZapCreateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -17,13 +22,18 @@ zapRouter.post('/', authMiddleware, async (req, res) => {
     return;
   }
 
-  const { name, availableTriggerId, actions } = parsed.data;
+  const { name, availableTriggerId, triggerMetadata = {}, actions } = parsed.data;
+  if (unknownInterval(triggerMetadata)) {
+    res.status(400).json({ message: 'Unknown schedule interval' });
+    return;
+  }
   // Zap, trigger and back-reference are written atomically.
   const zapId = await prismaClient.$transaction(async (tx) => {
     const zap = await tx.zap.create({
       data: {
         userId: req.userId!,
         name: name ?? null,
+        nextRunAt: firstRunAt(triggerMetadata, new Date()),
         triggerId: '',
         actions: {
           create: actions.map((a, index) => ({
@@ -35,7 +45,7 @@ zapRouter.post('/', authMiddleware, async (req, res) => {
       },
     });
     const trigger = await tx.trigger.create({
-      data: { triggerId: availableTriggerId, zapId: zap.id },
+      data: { triggerId: availableTriggerId, metadata: triggerMetadata, zapId: zap.id },
     });
     await tx.zap.update({ where: { id: zap.id }, data: { triggerId: trigger.id } });
     return zap.id;
@@ -105,6 +115,41 @@ zapRouter.get('/:zapId/runs', authMiddleware, async (req, res) => {
   res.json({ runs });
 });
 
+// Queues a failed run again from the step that failed; earlier steps and their outputs are kept.
+zapRouter.post('/:zapId/runs/:runId/replay', authMiddleware, async (req, res) => {
+  const id = String(req.params.runId);
+  const zap = { id: String(req.params.zapId), userId: req.userId };
+  const outcome = await prismaClient.$transaction(async (tx) => {
+    const failed = await tx.zapRunStep.findFirst({
+      where: { zapRunId: id, status: 'failed', zapRun: { status: 'failed', zap } },
+    });
+    if (!failed) return 'none';
+    // The replay runs the zap's current steps, so a setting fixed after the failure takes effect.
+    const actions = await tx.action.findMany({
+      where: { zapId: zap.id },
+      include: { type: true },
+    });
+    if (failed.stage >= actions.length) return 'moved';
+    // The status guard makes a double click queue the run once.
+    const { count } = await tx.zapRun.updateMany({
+      where: { id, status: 'failed' },
+      data: { status: 'queued', finishedAt: null, actions: snapshotActions(actions) },
+    });
+    if (count === 0) return 'none';
+    await tx.zapRunOutbox.create({ data: { zapRunId: id, stage: failed.stage } });
+    return 'queued';
+  });
+  if (outcome === 'none') {
+    res.status(404).json({ message: 'No failed run to replay' });
+    return;
+  }
+  if (outcome === 'moved') {
+    res.status(409).json({ message: 'The zap no longer has a step at the failed position' });
+    return;
+  }
+  res.json({ ok: true });
+});
+
 zapRouter.patch('/:zapId', authMiddleware, async (req, res) => {
   const parsed = ZapUpdateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -112,7 +157,17 @@ zapRouter.patch('/:zapId', authMiddleware, async (req, res) => {
     return;
   }
   const where = { id: String(req.params.zapId), userId: req.userId };
-  const { count } = await prismaClient.zap.updateMany({ where, data: parsed.data });
+  // Switching a scheduled zap back on restarts its schedule from now, so it doesn't fire for a stale time.
+  const trigger = parsed.data.enabled
+    ? await prismaClient.trigger.findFirst({ where: { zap: where } })
+    : null;
+  const { count } = await prismaClient.zap.updateMany({
+    where,
+    data: {
+      ...parsed.data,
+      ...(trigger && { nextRunAt: firstRunAt(trigger.metadata, new Date()) }),
+    },
+  });
   if (count === 0) {
     res.status(404).json({ message: 'Zap not found' });
     return;
@@ -128,14 +183,24 @@ zapRouter.put('/:zapId', authMiddleware, async (req, res) => {
     res.status(400).json({ message: 'Invalid data' });
     return;
   }
-  const { name, availableTriggerId, actions } = parsed.data;
+  const { name, availableTriggerId, triggerMetadata = {}, actions } = parsed.data;
+  if (unknownInterval(triggerMetadata)) {
+    res.status(400).json({ message: 'Unknown schedule interval' });
+    return;
+  }
   const zapId = String(req.params.zapId);
   const where = { id: zapId, userId: req.userId };
 
   const found = await prismaClient.$transaction(async (tx) => {
-    const { count } = await tx.zap.updateMany({ where, data: { name } });
+    const { count } = await tx.zap.updateMany({
+      where,
+      data: { name, nextRunAt: firstRunAt(triggerMetadata, new Date()) },
+    });
     if (count === 0) return false;
-    await tx.trigger.update({ where: { zapId }, data: { triggerId: availableTriggerId } });
+    await tx.trigger.update({
+      where: { zapId },
+      data: { triggerId: availableTriggerId, metadata: triggerMetadata },
+    });
     await tx.action.deleteMany({ where: { zapId } });
     await tx.action.createMany({
       data: actions.map((a, index) => ({

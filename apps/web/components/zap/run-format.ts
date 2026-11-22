@@ -10,6 +10,7 @@ interface StatusInfo {
 const statuses: Record<string, StatusInfo> = {
   queued: { label: 'Queued', variant: 'neutral' },
   running: { label: 'Running', variant: 'accent' },
+  waiting: { label: 'Waiting', variant: 'accent' },
   success: { label: 'Success', variant: 'success' },
   failed: { label: 'Failed', variant: 'danger' },
   halted: { label: 'Halted', variant: 'neutral' },

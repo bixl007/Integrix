@@ -1,4 +1,4 @@
-// Config fields per action id (AvailableAction.id). Add an entry to support a new action's UI.
+// Config fields per connector id (AvailableAction.id or AvailableTrigger.id). Add an entry to support a new connector's UI.
 export interface ActionField {
   key: string;
   label: string;
@@ -12,6 +12,32 @@ export interface ActionField {
 }
 
 export const actionFields: Record<string, ActionField[]> = {
+  schedule: [
+    {
+      key: 'interval',
+      label: 'Run',
+      placeholder: 'hourly',
+      // The ids match scheduleIntervals in @integrix/database.
+      options: [
+        { value: 'hourly', label: 'Every hour' },
+        { value: 'daily', label: 'Every day' },
+      ],
+    },
+  ],
+  delay: [
+    { key: 'amount', label: 'Wait for', placeholder: '30' },
+    {
+      key: 'unit',
+      label: 'Unit',
+      placeholder: 'minutes',
+      // The ids match the worker's delay units.
+      options: [
+        { value: 'minutes', label: 'Minutes' },
+        { value: 'hours', label: 'Hours' },
+        { value: 'days', label: 'Days' },
+      ],
+    },
+  ],
   email: [
     { key: 'email', label: 'To', placeholder: '{email}' },
     { key: 'subject', label: 'Subject', placeholder: 'Your order {order.id} is confirmed' },

@@ -29,7 +29,9 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
 
   const [name, setName] = useState(zap?.name ?? template?.name ?? '');
   const [trigger, setTrigger] = useState<PickedStep | undefined>(
-    zap?.trigger ? { integration: zap.trigger.type, metadata: {} } : undefined,
+    zap?.trigger
+      ? { integration: zap.trigger.type, metadata: zap.trigger.metadata ?? {} }
+      : undefined,
   );
   const [steps, setSteps] = useState<(PickedStep | undefined)[]>(
     zap
@@ -143,6 +145,7 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
           label="Trigger"
           index={1}
           integration={trigger?.integration}
+          detail={trigger ? Object.values(trigger.metadata).join(' · ') || undefined : undefined}
           onClick={() => setEditing('trigger')}
         />
         {steps.map((step, i) => (

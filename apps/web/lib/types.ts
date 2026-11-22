@@ -20,7 +20,9 @@ export interface Zap {
   userId: number;
   createdAt: string;
   actions: ZapAction[];
-  trigger: { id: string; type: Integration } | null;
+  /** When a scheduled zap fires next; null without a schedule. */
+  nextRunAt: string | null;
+  trigger: { id: string; type: Integration; metadata?: Record<string, string> | null } | null;
 }
 
 export interface User {

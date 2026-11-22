@@ -3,15 +3,15 @@ import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { CopyButton } from '@/components/ui/copy-button';
 import { ArrowRightIcon } from '@/components/ui/icons';
-import { webhookUrl } from '@/lib/config';
 import type { Zap } from '@/lib/types';
 import { IntegrationIcon } from './integration-icon';
+import { triggerSummaries } from './trigger-panels';
 import { ZapActions } from './zap-actions';
 import { zapTitle } from './zap-title';
 
 /** Dashboard card; `onChange` runs after the zap is renamed or deleted. */
 export function ZapCard({ zap, onChange }: { zap: Zap; onChange: () => void }) {
-  const url = webhookUrl(zap.userId, zap.id);
+  const summary = triggerSummaries[zap.trigger?.type.id ?? '']?.(zap);
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-background transition-colors before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-foreground before:opacity-0 before:transition-opacity hover:border-border-strong hover:before:opacity-100">
       <div className="flex flex-1 flex-col gap-4 p-5">
@@ -34,16 +34,22 @@ export function ZapCard({ zap, onChange }: { zap: Zap; onChange: () => void }) {
             {new Date(zap.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <p
-          className="truncate rounded-md bg-muted px-2 py-1.5 font-mono text-xs text-muted-foreground"
-          title={url}
-        >
-          {url}
-        </p>
+        {summary && (
+          <p
+            className="truncate rounded-md bg-muted px-2 py-1.5 font-mono text-xs text-muted-foreground"
+            title={summary.text}
+          >
+            {summary.text}
+          </p>
+        )}
       </div>
       {/* Only the controls are positioned, so the rest of the footer opens the zap. */}
       <div className="flex items-center justify-between border-t border-border px-5 py-3">
-        <CopyButton value={url} label="Copy URL" variant="ghost" className="relative" />
+        {summary?.copy ? (
+          <CopyButton value={summary.copy} label="Copy URL" variant="ghost" className="relative" />
+        ) : (
+          <span />
+        )}
         <div className="flex items-center gap-2">
           <ZapActions zap={zap} onRenamed={onChange} onDeleted={onChange} side="top" />
           {/* A real link: the hover transform would lift a plain icon above the stretched link. */}
