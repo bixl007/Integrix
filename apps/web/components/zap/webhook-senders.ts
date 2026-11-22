@@ -93,13 +93,31 @@ export const webhookSenders: WebhookSender[] = [
     name: 'Calendly',
     verifiedBy: 'Calendly-Webhook-Signature (timestamp and v1 signature, valid for 3 minutes)',
     setup:
-      'Create a webhook subscription through the Calendly API with the zap URL and signing_key set to the same secret. Calendly offers webhooks on its paid plans only.',
+      'Create a webhook subscription through the Calendly API with the zap URL and signing_key set to the same secret. Calendly offers webhooks on its paid plans only; Cal.com is a free alternative.',
     samplePayload: {
       event: 'invitee.created',
       payload: {
         name: 'Ada Lovelace',
         email: 'ada@example.com',
         scheduled_event: { name: 'Intro call', start_time: '2026-11-25T15:00:00Z' },
+      },
+    },
+  },
+  {
+    id: 'calcom',
+    name: 'Cal.com',
+    verifiedBy: 'X-Cal-Signature-256',
+    setup:
+      'Settings, Developer, Webhooks, New. Use the zap URL as the subscriber URL, pick the booking events and set the secret to the same value. Cal.com is open source and can be self-hosted for free; the hosted service calls https URLs only.',
+    samplePayload: {
+      triggerEvent: 'BOOKING_CREATED',
+      createdAt: '2026-11-22T10:15:00Z',
+      payload: {
+        title: 'Intro call between Ada and Grace',
+        startTime: '2026-11-25T15:00:00Z',
+        endTime: '2026-11-25T15:30:00Z',
+        organizer: { name: 'Grace Hopper', email: 'grace@example.com' },
+        attendees: [{ name: 'Ada Lovelace', email: 'ada@example.com' }],
       },
     },
   },

@@ -38,6 +38,12 @@ test('github signs the body as sha256=<hex>', () => {
   expect(check('github', { 'x-hub-signature-256': sign(body, 'hex') })).toBe(false);
 });
 
+test('cal.com signs the body as bare hex', () => {
+  expect(check('calcom', { 'x-cal-signature-256': sign(body, 'hex') })).toBe(true);
+  // Without a secret on its side, Cal.com sends this placeholder instead of a signature.
+  expect(check('calcom', { 'x-cal-signature-256': 'no-secret-provided' })).toBe(false);
+});
+
 test('shopify and typeform sign the body in base64', () => {
   expect(check('shopify', { 'x-shopify-hmac-sha256': sign(body, 'base64') })).toBe(true);
   expect(check('shopify', { 'x-shopify-hmac-sha256': sign('other', 'base64') })).toBe(false);

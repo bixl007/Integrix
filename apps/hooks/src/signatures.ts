@@ -59,6 +59,7 @@ export const verifiers: Record<string, Verifier> = {
   shopify: bodyHmac('x-shopify-hmac-sha256', 'base64'),
   typeform: bodyHmac('typeform-signature', 'base64', 'sha256='),
   calendly: timestamped('calendly-webhook-signature', 180),
+  calcom: bodyHmac('x-cal-signature-256', 'hex'),
   helius: sharedSecret('authorization'),
 };
 
