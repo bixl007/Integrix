@@ -112,6 +112,9 @@ export function StepPicker({
               name: f.key,
               label: f.label,
               required: !f.optional,
+              hint: f.secret
+                ? 'Kept on the server and hidden after you save. Leave the dots to keep the saved value.'
+                : undefined,
               defaultValue:
                 initial?.integration.id === selected.id ? initial.metadata[f.key] : undefined,
             };
@@ -129,7 +132,13 @@ export function StepPicker({
             return f.multiline ? (
               <Textarea key={f.key} {...props} placeholder={f.placeholder} />
             ) : (
-              <Input key={f.key} {...props} placeholder={f.placeholder} />
+              <Input
+                key={f.key}
+                {...props}
+                placeholder={f.placeholder}
+                type={f.secret ? 'password' : 'text'}
+                autoComplete="off"
+              />
             );
           })}
           <div className="flex justify-between pt-2">

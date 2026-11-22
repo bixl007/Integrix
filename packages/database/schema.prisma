@@ -95,10 +95,12 @@ model Action {
 }
 
 model AvailableAction {
-  id      String   @id @default(uuid())
-  name    String
-  image   String
-  actions Action[]
+  id           String   @id @default(uuid())
+  name         String
+  image        String
+  /// Metadata keys holding credentials; the API never returns their values.
+  secretFields String[] @default([])
+  actions      Action[]
 }
 
 model AvailableTrigger {

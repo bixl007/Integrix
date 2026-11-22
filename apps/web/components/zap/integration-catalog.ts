@@ -22,6 +22,26 @@ export const integrationCatalog: Record<string, IntegrationInfo> = {
     kind: 'action',
     description: 'Pause the run for minutes, hours or days before the next step.',
   },
+  http: {
+    name: 'HTTP request',
+    kind: 'action',
+    description: 'Call any public API with a templated method, URL, headers and body.',
+  },
+  slack: {
+    name: 'Slack',
+    kind: 'action',
+    description: 'Post a message to a channel through a Slack incoming webhook.',
+  },
+  discord: {
+    name: 'Discord',
+    kind: 'action',
+    description: 'Post a message to a channel through a Discord webhook.',
+  },
+  telegram: {
+    name: 'Telegram',
+    kind: 'action',
+    description: 'Send a message from your Telegram bot to a chat or group.',
+  },
   filter: {
     name: 'Filter',
     kind: 'action',

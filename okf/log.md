@@ -1,5 +1,9 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (HTTP, Slack, Discord, Telegram)
+
+- Added the `http`, `slack`, `discord` and `telegram` connectors with one sample template each, and the worker's guarded HTTP client (`src/http.ts`: no internal addresses, no redirects, 10 second limit). Action fields can be `secret`: `AvailableAction.secretFields` (migration `action_secret_fields`) drives masking in API responses and restoring on edit. The built-in catalog moved to `packages/database/src/catalog.ts`. Solana confirmation is now limited to 10 seconds and its output is `{ signature, confirmed }`. The builder blocks saving while a required setting is empty.
+
 ## 2026-11-22 (delay, schedule, replay)
 
 - Added the `delay` action (handlers may return `delayMs`; the worker parks the next stage in the outbox and the run shows as `waiting`) and the `schedule` trigger (`Trigger.metadata`, `Zap.nextRunAt`, migration `delay_schedule`; the processor starts due runs inside its existing loop). Hooks now accepts only webhook-triggered zaps. Added `POST /api/v1/zap/:zapId/runs/:runId/replay` and the Replay button, trigger settings in the builder, and the `trigger-panels.tsx` registries.

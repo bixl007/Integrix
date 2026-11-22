@@ -9,6 +9,8 @@ export interface ActionField {
   options?: { value: string; label: string }[];
   /** The field may be left empty. */
   optional?: boolean;
+  /** A credential: typed like a password, and the API returns a mask instead of the value. */
+  secret?: boolean;
 }
 
 export const actionFields: Record<string, ActionField[]> = {
@@ -68,6 +70,68 @@ export const actionFields: Record<string, ActionField[]> = {
       ],
     },
     { key: 'value', label: 'Compare with', placeholder: '100', optional: true },
+  ],
+  http: [
+    {
+      key: 'method',
+      label: 'Method',
+      placeholder: 'POST',
+      options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => ({ value: m, label: m })),
+    },
+    { key: 'url', label: 'URL', placeholder: 'https://api.example.com/orders' },
+    {
+      key: 'headers',
+      label: 'Headers',
+      placeholder: 'Authorization: Bearer <token>',
+      multiline: true,
+      optional: true,
+      secret: true,
+    },
+    {
+      key: 'body',
+      label: 'Body',
+      placeholder: '{"orderId": "{order.id}"}',
+      multiline: true,
+      optional: true,
+    },
+  ],
+  slack: [
+    {
+      key: 'webhookUrl',
+      label: 'Incoming webhook URL',
+      placeholder: 'https://hooks.slack.com/services/T000/B000/XXXX',
+      secret: true,
+    },
+    {
+      key: 'text',
+      label: 'Message',
+      placeholder: 'New order {order.id} from {customer.name}',
+      multiline: true,
+    },
+  ],
+  discord: [
+    {
+      key: 'webhookUrl',
+      label: 'Webhook URL',
+      placeholder: 'https://discord.com/api/webhooks/1234/abcd',
+      secret: true,
+    },
+    {
+      key: 'content',
+      label: 'Message',
+      placeholder: '{sender.login} starred {repository.full_name}',
+      multiline: true,
+    },
+  ],
+  telegram: [
+    { key: 'botToken', label: 'Bot token', placeholder: '123456:ABC-DEF', secret: true },
+    { key: 'chatId', label: 'Chat ID', placeholder: '-1001234567890' },
+    {
+      key: 'text',
+      label: 'Message',
+      placeholder: 'Payment of {amount} failed for {email}',
+      multiline: true,
+    },
   ],
   solana: [
     { key: 'amount', label: 'Amount (SOL)', placeholder: '{amount}' },

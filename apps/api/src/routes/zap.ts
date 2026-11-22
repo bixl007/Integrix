@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { prismaClient } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ZapCreateSchema, ZapUpdateSchema } from '../schemas';
+import { maskSecrets, restoreSecrets } from '../services/secrets';
 
 export const zapRouter = Router();
 
@@ -10,6 +11,59 @@ const zapInclude = {
   actions: { include: { type: true } },
   trigger: { include: { type: true } },
 } as const;
+
+type Metadata = Record<string, string>;
+
+interface StoredAction {
+  actionId: string;
+  metadata: unknown;
+  type: { secretFields: string[] };
+}
+
+/** The zap as the client may see it: secret settings are replaced by a mask. */
+const maskZap = <Z extends { actions: StoredAction[] }>(zap: Z): Z => ({
+  ...zap,
+  actions: zap.actions.map((a) => ({
+    ...a,
+    // Action metadata is only ever written as a flat string map (zod, below).
+    metadata: maskSecrets((a.metadata ?? {}) as Metadata, a.type.secretFields),
+  })),
+});
+
+interface ActionInput {
+  availableActionId: string;
+  actionMetadata?: Metadata;
+}
+
+/**
+ * Turns request actions into rows, swapping an unchanged mask for the secret stored at the same position.
+ * Returns an error message when an action id is unknown or a secret has to be entered again.
+ */
+async function resolveActions(actions: ActionInput[], stored: StoredAction[] = []) {
+  const types = await prismaClient.availableAction.findMany({
+    where: { id: { in: actions.map((a) => a.availableActionId) } },
+  });
+  const secretFields = new Map(types.map((t) => [t.id, t.secretFields]));
+  const rows: { actionId: string; sortingOrder: number; metadata: Metadata }[] = [];
+  for (const [index, action] of actions.entries()) {
+    const fields = secretFields.get(action.availableActionId);
+    if (!fields) return { error: `Unknown action "${action.availableActionId}"` };
+    const previous = stored[index];
+    const restored = restoreSecrets(
+      action.actionMetadata ?? {},
+      fields,
+      previous?.actionId === action.availableActionId ? (previous.metadata as Metadata) : undefined,
+    );
+    // Steps are numbered like the builder: the trigger is step 1.
+    if ('missing' in restored) return { error: `Enter the secret for step ${index + 2} again` };
+    rows.push({
+      actionId: action.availableActionId,
+      sortingOrder: index,
+      metadata: restored.metadata,
+    });
+  }
+  return { rows };
+}
 
 /** True when trigger settings name a schedule interval the processor doesn't know. */
 const unknownInterval = (triggerMetadata: Record<string, string>) =>
@@ -27,6 +81,11 @@ zapRouter.post('/', authMiddleware, async (req, res) => {
     res.status(400).json({ message: 'Unknown schedule interval' });
     return;
   }
+  const resolved = await resolveActions(actions);
+  if (!resolved.rows) {
+    res.status(400).json({ message: resolved.error });
+    return;
+  }
   // Zap, trigger and back-reference are written atomically.
   const zapId = await prismaClient.$transaction(async (tx) => {
     const zap = await tx.zap.create({
@@ -35,13 +94,7 @@ zapRouter.post('/', authMiddleware, async (req, res) => {
         name: name ?? null,
         nextRunAt: firstRunAt(triggerMetadata, new Date()),
         triggerId: '',
-        actions: {
-          create: actions.map((a, index) => ({
-            actionId: a.availableActionId,
-            sortingOrder: index,
-            metadata: a.actionMetadata,
-          })),
-        },
+        actions: { create: resolved.rows },
       },
     });
     const trigger = await tx.trigger.create({
@@ -60,7 +113,7 @@ zapRouter.get('/', authMiddleware, async (req, res) => {
     include: zapInclude,
     orderBy: { createdAt: 'desc' },
   });
-  res.json({ zaps });
+  res.json({ zaps: zaps.map(maskZap) });
 });
 
 zapRouter.get('/:zapId', authMiddleware, async (req, res) => {
@@ -68,7 +121,7 @@ zapRouter.get('/:zapId', authMiddleware, async (req, res) => {
     where: { id: String(req.params.zapId), userId: req.userId },
     include: zapInclude,
   });
-  res.json({ zap });
+  res.json({ zap: zap && maskZap(zap) });
 });
 
 // The latest request and its step outputs, which the builder turns into field suggestions.
@@ -173,7 +226,7 @@ zapRouter.patch('/:zapId', authMiddleware, async (req, res) => {
     return;
   }
   const zap = await prismaClient.zap.findFirst({ where, include: zapInclude });
-  res.json({ zap });
+  res.json({ zap: zap && maskZap(zap) });
 });
 
 // Replaces the zap's steps; runs already started keep the steps copied onto them at intake.
@@ -190,6 +243,17 @@ zapRouter.put('/:zapId', authMiddleware, async (req, res) => {
   }
   const zapId = String(req.params.zapId);
   const where = { id: zapId, userId: req.userId };
+  const stored = await prismaClient.action.findMany({
+    where: { zap: where },
+    include: { type: true },
+    orderBy: { sortingOrder: 'asc' },
+  });
+  const resolved = await resolveActions(actions, stored);
+  if (!resolved.rows) {
+    res.status(400).json({ message: resolved.error });
+    return;
+  }
+  const rows = resolved.rows;
 
   const found = await prismaClient.$transaction(async (tx) => {
     const { count } = await tx.zap.updateMany({
@@ -202,14 +266,7 @@ zapRouter.put('/:zapId', authMiddleware, async (req, res) => {
       data: { triggerId: availableTriggerId, metadata: triggerMetadata },
     });
     await tx.action.deleteMany({ where: { zapId } });
-    await tx.action.createMany({
-      data: actions.map((a, index) => ({
-        zapId,
-        actionId: a.availableActionId,
-        sortingOrder: index,
-        metadata: a.actionMetadata ?? {},
-      })),
-    });
+    await tx.action.createMany({ data: rows.map((row) => ({ zapId, ...row })) });
     return true;
   });
   if (!found) {
@@ -217,7 +274,7 @@ zapRouter.put('/:zapId', authMiddleware, async (req, res) => {
     return;
   }
   const zap = await prismaClient.zap.findFirst({ where, include: zapInclude });
-  res.json({ zap });
+  res.json({ zap: zap && maskZap(zap) });
 });
 
 // Trigger, actions, runs and pending outbox rows cascade in the database.

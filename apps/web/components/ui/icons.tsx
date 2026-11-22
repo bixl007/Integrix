@@ -89,6 +89,31 @@ export const RotateIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const GlobeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20" />
+  </Icon>
+);
+
+export const HashIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" />
+  </Icon>
+);
+
+export const MessageIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+  </Icon>
+);
+
+export const SendIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m22 2-7 20-4-9-9-4ZM22 2 11 13" />
+  </Icon>
+);
+
 export const FilterIcon = (p: IconProps) => (
   <Icon {...p}>
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />

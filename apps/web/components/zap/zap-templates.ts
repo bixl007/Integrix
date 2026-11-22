@@ -133,6 +133,87 @@ export const zapTemplates: ZapTemplate[] = [
     samplePayload: { name: 'Ada Lovelace', email: 'ada@example.com' },
   },
   {
+    id: 'slack-signup-ping',
+    name: 'Post new sign-ups to Slack',
+    summary:
+      'Create an incoming webhook in Slack, paste its URL into the step, and every sign-up is posted to that channel.',
+    triggerId: 'webhook',
+    actions: [
+      {
+        actionId: 'slack',
+        metadata: { webhookUrl: '', text: ':wave: {name} ({email}) just signed up' },
+      },
+    ],
+    samplePayload: { name: 'Ada Lovelace', email: 'ada@example.com' },
+  },
+  {
+    id: 'discord-star-feed',
+    name: 'Announce GitHub stars in Discord',
+    summary:
+      'Add the zap URL as a GitHub webhook for the "Stars" event and paste a Discord channel webhook URL into the step.',
+    triggerId: 'webhook',
+    actions: [
+      {
+        actionId: 'discord',
+        metadata: {
+          webhookUrl: '',
+          content:
+            '⭐ {sender.login} starred {repository.full_name} ({repository.stargazers_count} stars)',
+        },
+      },
+    ],
+    samplePayload: {
+      action: 'created',
+      sender: { login: 'octocat' },
+      repository: { full_name: 'bixl007/Integrix', stargazers_count: 42 },
+    },
+  },
+  {
+    id: 'telegram-payment-alert',
+    name: 'Telegram alert for failed payments',
+    summary:
+      'Your bot messages you when a payment fails. Add the bot token from @BotFather and the chat ID to send to.',
+    triggerId: 'webhook',
+    actions: [
+      {
+        actionId: 'telegram',
+        metadata: {
+          botToken: '',
+          chatId: '',
+          text: 'Payment of {amount} failed for {email}.\nReason: {reason}',
+        },
+      },
+    ],
+    samplePayload: { amount: '$49.00', email: 'grace@example.com', reason: 'card_declined' },
+  },
+  {
+    id: 'forward-to-api',
+    name: 'Forward orders to your API',
+    summary:
+      'Send each order to your own endpoint with an HTTP request, then email yourself the status it answered with.',
+    triggerId: 'webhook',
+    actions: [
+      {
+        actionId: 'http',
+        metadata: {
+          method: 'POST',
+          url: 'https://api.example.com/orders',
+          headers: '',
+          body: '{"orderId": "{order.id}", "total": "{order.total}"}',
+        },
+      },
+      {
+        actionId: 'email',
+        metadata: {
+          email: OWNER_EMAIL,
+          subject: 'Order {order.id} forwarded ({steps.2.status})',
+          body: 'Your API answered {steps.2.status} for order {order.id}.',
+        },
+      },
+    ],
+    samplePayload: { order: { id: 'A-3001', total: '49.00' } },
+  },
+  {
     id: 'sol-payout-receipt',
     name: 'SOL payout with receipt',
     summary: 'Send devnet SOL to a wallet from the payload, then email the recipient a receipt.',

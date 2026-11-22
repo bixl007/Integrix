@@ -3,7 +3,11 @@ import {
   CalendarIcon,
   ClockIcon,
   FilterIcon,
+  GlobeIcon,
+  HashIcon,
   MailIcon,
+  MessageIcon,
+  SendIcon,
   SolanaIcon,
   WebhookIcon,
 } from '@/components/ui/icons';
@@ -17,6 +21,10 @@ const builtIn: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   email: MailIcon,
   schedule: CalendarIcon,
   delay: ClockIcon,
+  http: GlobeIcon,
+  slack: HashIcon,
+  discord: MessageIcon,
+  telegram: SendIcon,
   filter: FilterIcon,
 };
 

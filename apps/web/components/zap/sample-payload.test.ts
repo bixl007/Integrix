@@ -16,6 +16,12 @@ describe('samplePayload', () => {
     expect(samplePayload(['you@example.com', 'Hello'])).toEqual({});
   });
 
+  test('ignores step outputs and JSON that only looks like a placeholder', () => {
+    expect(
+      samplePayload(['{"event":"signup"}', '{"id": "{order.id}"}', 'Status {steps.2.status}']),
+    ).toEqual({ order: { id: '<id>' } });
+  });
+
   test('a nested path replaces an earlier flat value', () => {
     expect(samplePayload(['{user}', '{user.email}', '{user}'])).toEqual({
       user: { email: '<email>' },

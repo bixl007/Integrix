@@ -10,10 +10,17 @@ import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import type { Integration, Zap } from '@/lib/types';
+import { actionFields } from './action-fields';
 import { fieldSuggestions, type ZapSample } from './field-paths';
 import { StepConnector, StepNode } from './step-node';
 import { StepPicker, type PickedStep } from './step-picker';
 import { templateSteps, type ZapTemplate } from './zap-templates';
+
+/** Labels of the required settings a step still lacks (a template leaves credentials empty). */
+export const missingSettings = (step: PickedStep) =>
+  (actionFields[step.integration.id] ?? [])
+    .filter((f) => !f.optional && !step.metadata[f.key]?.trim())
+    .map((f) => f.label);
 
 // Index of the step being edited: 'trigger' or an action position.
 type Editing = 'trigger' | number | null;
@@ -68,7 +75,13 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
     }
   }
 
-  const ready = !!trigger && steps.length > 0 && steps.every(Boolean);
+  const incomplete = [trigger, ...steps].flatMap((step, i) => {
+    const missing = step ? missingSettings(step) : [];
+    return missing.length
+      ? [`Step ${i + 1} (${step?.integration.name}): ${missing.join(', ')}`]
+      : [];
+  });
+  const ready = !!trigger && steps.length > 0 && steps.every(Boolean) && incomplete.length === 0;
 
   async function publish() {
     if (!trigger || !ready) return;
@@ -122,6 +135,12 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
       {templateStatus === 'unavailable' && (
         <Alert variant="info" className="mb-6">
           This template needs an integration that isn&apos;t available on this server.
+        </Alert>
+      )}
+
+      {incomplete.length > 0 && (
+        <Alert variant="info" className="mb-6">
+          Fill in these settings before saving. {incomplete.join('. ')}.
         </Alert>
       )}
 
