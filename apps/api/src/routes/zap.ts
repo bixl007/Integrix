@@ -71,11 +71,19 @@ interface ActionInput {
  * Turns request actions into rows, swapping an unchanged mask for the secret stored at the same position.
  * Returns an error message when an action id is unknown or a secret has to be entered again.
  */
-async function resolveActions(actions: ActionInput[], stored: StoredAction[] = []) {
+async function resolveActions(
+  actions: ActionInput[],
+  userId: number | undefined,
+  stored: StoredAction[] = [],
+) {
   const types = await prismaClient.availableAction.findMany({
     where: { id: { in: actions.map((a) => a.availableActionId) } },
   });
   const secretFields = new Map(types.map((t) => [t.id, t.secretFields]));
+  const connectionIds = actions.flatMap((a) => a.actionMetadata?.connectionId || []);
+  const connections = connectionIds.length
+    ? await prismaClient.connection.findMany({ where: { id: { in: connectionIds }, userId } })
+    : [];
   const rows: { actionId: string; sortingOrder: number; metadata: Metadata }[] = [];
   for (const [index, action] of actions.entries()) {
     const fields = secretFields.get(action.availableActionId);
@@ -86,7 +94,12 @@ async function resolveActions(actions: ActionInput[], stored: StoredAction[] = [
       fields,
       previous?.actionId === action.availableActionId ? (previous.metadata as Metadata) : undefined,
     );
+    const connectionId = action.actionMetadata?.connectionId;
+    const owned = connections.some(
+      (c) => c.id === connectionId && c.connectorId === action.availableActionId,
+    );
     // Steps are numbered like the builder: the trigger is step 1.
+    if (connectionId && !owned) return { error: `Pick the connection for step ${index + 2} again` };
     if ('missing' in restored) return { error: `Enter the secret for step ${index + 2} again` };
     rows.push({
       actionId: action.availableActionId,
@@ -111,7 +124,7 @@ zapRouter.post('/', authMiddleware, async (req, res) => {
     return;
   }
   const triggerMetadata = trigger.metadata;
-  const resolved = await resolveActions(actions);
+  const resolved = await resolveActions(actions, req.userId);
   if (!resolved.rows) {
     res.status(400).json({ message: resolved.error });
     return;
@@ -284,7 +297,7 @@ zapRouter.put('/:zapId', authMiddleware, async (req, res) => {
     include: { type: true },
     orderBy: { sortingOrder: 'asc' },
   });
-  const resolved = await resolveActions(actions, stored);
+  const resolved = await resolveActions(actions, req.userId, stored);
   if (!resolved.rows) {
     res.status(400).json({ message: resolved.error });
     return;

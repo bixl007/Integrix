@@ -63,3 +63,9 @@ export const ChangePasswordSchema = z.object({
   currentPassword: z.string().optional(),
   newPassword: z.string().min(6).max(128),
 });
+
+export const ConnectionCreateSchema = z.object({
+  connectorId: z.string().min(1),
+  name: z.string().trim().min(1).max(80),
+  values: z.record(z.string().trim().min(1).max(500)),
+});

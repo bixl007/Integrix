@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { ArrowLeftIcon } from '@/components/ui/icons';
-import type { Integration } from '@/lib/types';
+import { useApi } from '@/hooks/use-api';
+import type { Connection, Integration } from '@/lib/types';
 import { actionFields } from './action-fields';
 import { IntegrationIcon } from './integration-icon';
 
@@ -36,6 +37,10 @@ export function StepPicker({
   const [selected, setSelected] = useState<Integration | undefined>(initial?.integration);
   const fields = selected ? (actionFields[selected.id] ?? []) : [];
   const configuring = selected && fields.length > 0;
+  // Only connectors that take a connection load the user's saved ones.
+  const connections = useApi<{ connections: Connection[] }>(
+    fields.some((f) => f.connection) ? '/connection' : null,
+  );
 
   // Fields are uncontrolled, so a suggestion is written straight into the last edited one.
   const formRef = useRef<HTMLFormElement>(null);
@@ -124,6 +129,26 @@ export function StepPicker({
               defaultValue:
                 initial?.integration.id === selected.id ? initial.metadata[f.key] : undefined,
             };
+            if (f.connection) {
+              const mine = (connections.data?.connections ?? []).filter(
+                (c) => c.connectorId === selected.id,
+              );
+              return (
+                // Keyed on the loaded list so the saved choice is selected once the options exist.
+                <Select
+                  key={`${f.key}-${mine.length}`}
+                  {...props}
+                  hint="Your own account for this step. Add or remove connections under Settings."
+                >
+                  <option value="">{f.placeholder}</option>
+                  {mine.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              );
+            }
             if (f.options) {
               return (
                 <Select key={f.key} {...props}>

@@ -19,8 +19,12 @@ const connection = new Connection('https://api.devnet.solana.com', {
 });
 
 /** Sends the transfer and waits up to 10 seconds for it to confirm. */
-export async function sendSol(to: string, amount: string) {
-  const keypair = Keypair.fromSecretKey(base58.decode(process.env.SOL_PRIVATE_KEY ?? ''));
+export async function sendSol(
+  to: string,
+  amount: string,
+  secretKey = process.env.SOL_PRIVATE_KEY ?? '',
+) {
+  const keypair = Keypair.fromSecretKey(base58.decode(secretKey.trim()));
   const tx = new Transaction().add(
     SystemProgram.transfer({
       fromPubkey: keypair.publicKey,
@@ -43,9 +47,10 @@ export async function sendSol(to: string, amount: string) {
   return { signature, confirmed };
 }
 
-export const solanaAction: ActionHandler = async (metadata, payload) => {
+export const solanaAction: ActionHandler = async (metadata, payload, context) => {
   const address = parse(String(metadata.address ?? ''), payload);
   const amount = parse(String(metadata.amount ?? ''), payload);
   console.log(`Sending ${amount} SOL to ${address}`);
-  return { output: await sendSol(address, amount) };
+  // With a connection the transfer is paid from the user's own wallet; otherwise from the server's.
+  return { output: await sendSol(address, amount, context?.connection?.privateKey) };
 };

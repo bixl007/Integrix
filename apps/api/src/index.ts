@@ -4,6 +4,7 @@ import { PORT, WEB_URL } from './config';
 import { errorHandler } from './middleware/error';
 import { actionRouter } from './routes/action';
 import { authRouter } from './routes/auth';
+import { connectionRouter } from './routes/connection';
 import { profileRouter } from './routes/profile';
 import { triggerRouter } from './routes/trigger';
 import { usageRouter } from './routes/usage';
@@ -26,6 +27,7 @@ app.use('/api/v1/zap', zapRouter);
 app.use('/api/v1/trigger', triggerRouter);
 app.use('/api/v1/action', actionRouter);
 app.use('/api/v1/usage', usageRouter);
+app.use('/api/v1/connection', connectionRouter);
 app.use(errorHandler);
 
 app.listen(PORT, () => {

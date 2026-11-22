@@ -10,7 +10,7 @@ import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import type { Integration, Zap } from '@/lib/types';
-import { actionFields } from './action-fields';
+import { actionFields, stepSummary } from './action-fields';
 import { fieldSuggestions, type ZapSample } from './field-paths';
 import { StepConnector, StepNode } from './step-node';
 import { StepPicker, type PickedStep } from './step-picker';
@@ -169,7 +169,7 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
           label="Trigger"
           index={1}
           integration={trigger?.integration}
-          detail={trigger ? Object.values(trigger.metadata).join(' · ') || undefined : undefined}
+          detail={trigger && stepSummary(trigger.integration.id, trigger.metadata)}
           onClick={() => setEditing('trigger')}
         />
         {steps.map((step, i) => (
@@ -179,7 +179,7 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
               label="Action"
               index={i + 2}
               integration={step?.integration}
-              detail={step ? Object.values(step.metadata).join(' · ') : undefined}
+              detail={step && stepSummary(step.integration.id, step.metadata)}
               onClick={() => setEditing(i)}
               onRemove={
                 steps.length > 1 ? () => setSteps((s) => s.filter((_, j) => j !== i)) : undefined

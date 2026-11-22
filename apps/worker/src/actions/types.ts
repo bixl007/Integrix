@@ -8,8 +8,18 @@ export interface ActionResult {
   delayMs?: number;
 }
 
-/** Runs one action step; `metadata` holds templates, `payload` is the request body plus earlier step outputs under `steps`. Throw to fail the step. */
+/** What the worker resolves for a step before running it. */
+export interface ActionContext {
+  /** The decrypted values of the user's connection the step points at, when it has one. */
+  connection?: Record<string, string>;
+}
+
+/**
+ * Runs one action step. `metadata` holds templates, `payload` is the request body plus earlier
+ * step outputs under `steps`. Throw to fail the step.
+ */
 export type ActionHandler = (
   metadata: JsonObject,
   payload: JsonValue,
+  context?: ActionContext,
 ) => Promise<ActionResult | void>;

@@ -15,13 +15,15 @@ describe('zapTemplates', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  // Keeps templates in step with the builder form, so "Use template" never leaves a field empty.
-  test('every step uses a known integration and exactly its form fields', () => {
+  // Keeps templates in step with the builder form: every setting a template gives must exist,
+  // and it may leave out only the choice of the user's own connection.
+  test('every step uses a known integration and its form fields', () => {
     for (const t of zapTemplates) {
       expect(integrationCatalog[t.triggerId]?.kind).toBe('trigger');
       for (const a of t.actions) {
-        const keys = (actionFields[a.actionId] ?? []).map((f) => f.key).sort();
-        expect(Object.keys(a.metadata).sort()).toEqual(keys);
+        const fields = actionFields[a.actionId] ?? [];
+        const expected = fields.filter((f) => !f.connection).map((f) => f.key);
+        expect(Object.keys(a.metadata).sort()).toEqual(expected.sort());
       }
     }
   });

@@ -2,6 +2,7 @@ import { Prisma, PrismaClient, readRunActions, snapshotActions } from '@integrix
 import { sendMail } from '@integrix/mailer';
 import { Kafka } from 'kafkajs';
 import { actionHandlers } from './actions';
+import { loadConnection } from './connection';
 import { templateContext } from './context';
 import { failureMail } from './notify';
 import { runStatusAfter, runStep } from './stage';
@@ -61,6 +62,13 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
     templateContext(zapRun.metadata, zapRun.steps, stage),
     RETRY_DELAYS_MS,
     heartbeat,
+    async () => ({
+      connection: await loadConnection(
+        prismaClient,
+        action.metadata.connectionId,
+        zapRun.zap.userId,
+      ),
+    }),
   );
   const finishedAt = new Date();
   const status = runStatusAfter(result.status, stage >= actions.length - 1, result.delayMs);

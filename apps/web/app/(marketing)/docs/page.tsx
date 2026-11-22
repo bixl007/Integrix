@@ -31,6 +31,7 @@ const toc = [
   { id: 'sample-integrations', label: 'Sample integrations' },
   { id: 'webhooks', label: 'Calling a webhook' },
   { id: 'senders', label: 'Webhook senders' },
+  { id: 'connections', label: 'Connections' },
   { id: 'run-history', label: 'Run history' },
   { id: 'api', label: 'API reference' },
   { id: 'architecture', label: 'Architecture' },
@@ -133,6 +134,14 @@ const endpoints: { method: string; path: string; returns: string; note: string }
     returns: '{ ok }',
     note: 'Re-queues a failed run from its failed step',
   },
+  { method: 'GET', path: '/connection', returns: '{ connections }', note: 'Names only' },
+  {
+    method: 'POST',
+    path: '/connection',
+    returns: '{ connection }',
+    note: 'Body { connectorId, name, values }',
+  },
+  { method: 'DELETE', path: '/connection/:id', returns: '{ ok }', note: 'Steps using it fail' },
   { method: 'GET', path: '/usage', returns: '{ months }', note: 'Steps run per month, last 6' },
   { method: 'GET', path: '/profile', returns: '{ profile }', note: 'Name, email, password set' },
 ];
@@ -364,15 +373,19 @@ export default function DocsPage() {
               Halted: later steps don&apos;t run and no failure email is sent.
             </li>
             <li>
-              Email is sent through the server&apos;s SMTP account as plain text plus a simple HTML
-              version. In the body, a blank line starts a new paragraph and a single newline is a
-              line break. Values from the payload are escaped, so they can&apos;t add markup.
+              Email is sent from the Gmail connection you pick under <strong>Send from</strong>, or
+              from the server&apos;s mail account when you pick none. It goes out as plain text plus
+              a simple HTML version. In the body, a blank line starts a new paragraph and a single
+              newline is a line break. Values from the payload are escaped, so they can&apos;t add
+              markup.
             </li>
             <li>
-              Solana sends devnet SOL from the server&apos;s wallet (<Code>SOL_PRIVATE_KEY</Code>)
-              and waits up to 10 seconds for confirmation. Its output is the <Code>signature</Code>{' '}
-              and whether it was <Code>confirmed</Code> in that time. The amount is in SOL, for
-              example <Code>0.01</Code>.
+              Solana sends devnet SOL from the wallet connection you pick under{' '}
+              <strong>Pay from</strong>, or from the server&apos;s wallet (
+              <Code>SOL_PRIVATE_KEY</Code>) when you pick none. It waits up to 10 seconds for
+              confirmation. Its output is the <Code>signature</Code> and whether it was{' '}
+              <Code>confirmed</Code> in that time. The amount is in SOL, for example{' '}
+              <Code>0.01</Code>.
             </li>
           </ul>
         </Section>
@@ -524,6 +537,48 @@ export default function DocsPage() {
             <Code>{'{0.signature}'}</Code> is the signature of the first item, and{' '}
             <Code>{'{items.1.name}'}</Code> reads the second entry of a list inside the body.
           </p>
+        </Section>
+
+        <Section id="connections" title="Connections">
+          <p>
+            A connection is your own account for a connector, saved once under{' '}
+            <strong>Settings</strong> and picked on any step that can use it. Without one, a step
+            uses the server&apos;s account.
+          </p>
+          <Table head={['Connection', 'What you enter', 'Used by']}>
+            <tr>
+              <Td>Gmail account</Td>
+              <Td>
+                Your Gmail address and an app password (Google Account, Security, 2-Step
+                Verification, App passwords). Not your Google password.
+              </Td>
+              <Td>Email steps, under Send from. Mail is sent from your address.</Td>
+            </tr>
+            <tr>
+              <Td>Solana wallet</Td>
+              <Td>The base58 secret key of a devnet wallet.</Td>
+              <Td>Solana steps, under Pay from. Transfers are paid from that wallet.</Td>
+            </tr>
+          </Table>
+          <ul className="flex list-disc flex-col gap-2 pl-5">
+            <li>
+              Credentials are encrypted on the server and are never shown again or sent back to the
+              browser. To change one, remove the connection and add it again.
+            </li>
+            <li>
+              If you remove a connection, steps that use it fail with a message saying so until you
+              pick another one.
+            </li>
+            <li>
+              Gmail limits a free account to about 500 recipients a day. Sign-in codes and
+              run-failure emails always come from the server&apos;s own mail account, not from a
+              connection.
+            </li>
+            <li>
+              Transfers run on Solana devnet only. Never enter the key of a wallet that holds real
+              funds.
+            </li>
+          </ul>
         </Section>
 
         <Section id="run-history" title="Run history">

@@ -20,6 +20,13 @@ A connector is one string id (`webhook`, `schedule`, `email`, `filter`, `delay`,
 
 Add a trigger the same way, using `triggers` in the seed and `kind: 'trigger'`. A trigger's settings go in the same `action-fields.ts` registry under its id and are stored as `Trigger.metadata`. Two triggers exist: `webhook`, whose intake is `hooks` (its `sender` and `secret` settings select and key the signature check), and `schedule`, whose runs the processor starts. A new trigger type needs its own intake that writes `ZapRun` (with `snapshotActions`) and `ZapRunOutbox` in one transaction. Give it a card on the zap page and a dashboard summary in `trigger-panels.tsx`.
 
+## Give an action its own per-user credential
+
+1. `packages/database/src/catalog.ts`: list the credential keys in the action's `connectionFields`.
+2. `apps/web/components/zap/connection-fields.ts`: add the form under the same id, with the same keys.
+3. `action-fields.ts`: add `{ key: 'connectionId', connection: true, optional: true }` to the action's form, with the server default as its placeholder.
+4. In the handler, read `context?.connection` (the third argument) and fall back to the server-wide credential when it is undefined. Never log it or put it in an error or output.
+
 ## Rules
 
 - Never rename or delete a seeded id. Zaps reference it, and every registry keys on it.

@@ -6,6 +6,8 @@ export interface Integration {
   image: string;
   /** Actions only: settings the API masks in responses. */
   secretFields?: string[];
+  /** Actions only: the credential keys a connection for it holds. */
+  connectionFields?: string[];
 }
 
 export interface ZapAction {
@@ -49,4 +51,13 @@ export interface ZapRun {
   createdAt: string;
   finishedAt: string | null;
   steps: ZapRunStep[];
+}
+
+/** A saved credential; the credential itself never leaves the server. */
+export interface Connection {
+  id: string;
+  /** The connector (`AvailableAction.id`) it is for. */
+  connectorId: string;
+  name: string;
+  createdAt: string;
 }
