@@ -3,22 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "tsc -w",
-    "build": "tsc -b",
-    "start": "node dist/index.js"
+    "dev": "bun --env-file=../../.env --watch src/index.ts",
+    "build": "tsc",
+    "start": "node --env-file-if-exists=../../.env dist/index.js",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@integrix/database": "*",
+    "@integrix/database": "workspace:*",
+    "@integrix/mailer": "workspace:*",
     "@solana/web3.js": "^1.98.2",
-    "@types/nodemailer": "^6.4.17",
     "bs58": "^6.0.0",
-    "dotenv": "^16.5.0",
-    "kafkajs": "^2.2.4",
-    "nodemailer": "^7.0.3"
+    "kafkajs": "^2.2.4"
   },
   "devDependencies": {
-    "@integrix/tsconfig": "*",
-    "@types/node": "^20",
-    "typescript": "^5"
+    "@integrix/tsconfig": "workspace:*",
+    "@types/node": "^26.6.6",
+    "typescript": "^5.9.3"
   }
 }

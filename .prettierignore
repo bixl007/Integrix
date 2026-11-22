@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+.turbo/
+out/
+build/
+coverage/
+.husky/_/
+.vercel/
+next-env.d.ts
+*.tsbuildinfo
+bun.lock
+.env*
+packages/database/migrations/
+apps/web/public/

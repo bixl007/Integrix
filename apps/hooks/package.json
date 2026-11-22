@@ -3,18 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "tsc -w",
-    "build": "tsc -b",
-    "start": "node dist/index.js"
+    "dev": "bun --env-file=../../.env --watch src/index.ts",
+    "build": "tsc",
+    "start": "node --env-file-if-exists=../../.env dist/index.js",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@integrix/database": "*",
-    "@types/express": "^5.0.0",
-    "express": "^4.21.2"
+    "@integrix/database": "workspace:*",
+    "express": "^5.3.0"
   },
   "devDependencies": {
-    "@integrix/tsconfig": "*",
-    "@types/node": "^20",
-    "typescript": "^5"
+    "@integrix/tsconfig": "workspace:*",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
+    "typescript": "^5.9.3"
   }
 }

@@ -1,26 +1,25 @@
 {
   "name": "@integrix/database",
   "version": "1.0.0",
+  "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
-    "db:push": "prisma db push",
-    "db:studio": "prisma studio",
-    "db:seed": "prisma db seed"
-  },
-  "prisma": {
-    "seed": "npx tsx seed.ts"
+    "db:migrate": "bun --env-file=../../.env prisma migrate deploy",
+    "db:push": "bun --env-file=../../.env prisma db push",
+    "db:seed": "bun --env-file=../../.env prisma db seed",
+    "db:studio": "bun --env-file=../../.env prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "^6.1.0"
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "prisma": "^6.1.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5"
+    "@integrix/tsconfig": "workspace:*",
+    "@types/node": "^26.6.6",
+    "prisma": "^6.19.3",
+    "typescript": "^5.9.3"
   }
 }

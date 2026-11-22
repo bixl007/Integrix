@@ -14,11 +14,45 @@ datasource db {
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  name     String
-  email    String
-  password String
-  zaps     Zap[]
+  id            Int       @id @default(autoincrement())
+  name          String
+  email         String    @unique
+  /// Null for accounts created through OAuth only.
+  password      String?
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  zaps          Zap[]
+  sessions      Session[]
+  otpCodes      OtpCode[]
+}
+
+/// Server-side login session; the cookie holds the raw token, only its SHA-256 is stored.
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// One-time email code for signup/login or for confirming a new email address.
+model OtpCode {
+  id        String   @id @default(uuid())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "auth" (signup/login) or "email_change"; a code only works for its own purpose.
+  purpose   String   @default("auth")
+  /// Target address for "email_change"; null for "auth".
+  email     String?
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Zap {
