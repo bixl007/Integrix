@@ -4,7 +4,7 @@ This document explains how Integrix works end to end: the services, the data mod
 
 ## 1. What Integrix does
 
-A user builds a **zap**: one trigger (a webhook or a schedule) followed by an ordered list of **actions** (Email, Filter, Delay, Solana). Every JSON `POST` to the zap's URL creates a **run**. The run's actions execute in order in the background, and `{placeholders}` in each action's settings are filled from the request body.
+A user builds a **zap**: one trigger (a webhook or a schedule) followed by an ordered list of **actions** (Email, HTTP request, Slack, Discord, Telegram, Filter, Delay, Solana). Every JSON `POST` to the zap's URL creates a **run**. The run's actions execute in order in the background, and `{placeholders}` in each action's settings are filled from the request body.
 
 ## 2. System overview
 
@@ -26,18 +26,19 @@ flowchart LR
   Worker -->|read run, write steps| DB
   Worker --> SMTP[SMTP]
   Worker --> Solana[Solana devnet]
+  Worker -->|guarded, 10 s limit| Public[Public HTTP APIs · Slack · Discord · Telegram]
   API --> SMTP
 ```
 
-| Service             | Responsibility                                                                        | Talks to                   | State                         |
-| ------------------- | ------------------------------------------------------------------------------------- | -------------------------- | ----------------------------- |
-| `apps/web`          | UI: marketing site, docs, auth screens, zap builder and dashboard                     | api (browser `fetch`)      | none (cookie in browser)      |
-| `apps/api`          | Auth (email OTP, Google OAuth, cookie sessions), profile, zap CRUD, connector catalog | Postgres, SMTP             | stateless                     |
-| `apps/hooks`        | Public webhook intake; records a run and its outbox row atomically                    | Postgres                   | stateless                     |
-| `apps/processor`    | Moves due outbox rows into Kafka and starts runs for scheduled zaps that are due      | Postgres, Kafka            | stateless (outbox is the log) |
-| `apps/worker`       | Runs one action per message, records the step, queues the next stage, commits         | Postgres, Kafka, SMTP, RPC | Kafka consumer group offsets  |
-| `packages/database` | Prisma schema, migrations, seed, shared client                                        | —                          | —                             |
-| `packages/mailer`   | One SMTP transport shared by the API (OTP) and the worker (Email action, run alerts)  | SMTP                       | —                             |
+| Service             | Responsibility                                                                        | Talks to                                | State                         |
+| ------------------- | ------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------- |
+| `apps/web`          | UI: marketing site, docs, auth screens, zap builder and dashboard                     | api (browser `fetch`)                   | none (cookie in browser)      |
+| `apps/api`          | Auth (email OTP, Google OAuth, cookie sessions), profile, zap CRUD, connector catalog | Postgres, SMTP                          | stateless                     |
+| `apps/hooks`        | Public webhook intake; records a run and its outbox row atomically                    | Postgres                                | stateless                     |
+| `apps/processor`    | Moves due outbox rows into Kafka and starts runs for scheduled zaps that are due      | Postgres, Kafka                         | stateless (outbox is the log) |
+| `apps/worker`       | Runs one action per message, records the step, queues the next stage, commits         | Postgres, Kafka, SMTP, RPC, public HTTP | Kafka consumer group offsets  |
+| `packages/database` | Prisma schema, migrations, seed, shared client                                        | —                                       | —                             |
+| `packages/mailer`   | One SMTP transport shared by the API (OTP) and the worker (Email action, run alerts)  | SMTP                                    | —                             |
 
 Every backend service imports `@integrix/database`, so there is one schema and one client for the whole monorepo.
 
@@ -57,7 +58,7 @@ erDiagram
   ZapRun ||--o{ ZapRunStep : "records"
 ```
 
-- **Catalog tables**: `AvailableTrigger` and `AvailableAction` list the connector types. Their string ids (`webhook`, `schedule`, `email`, `filter`, `delay`, `solana`) are the contract that every registry keys on. `seed.ts` upserts them idempotently.
+- **Catalog tables**: `AvailableTrigger` and `AvailableAction` list the connector types. Their string ids (`webhook`, `schedule`, `email`, `filter`, `delay`, `http`, `slack`, `discord`, `telegram`, `solana`) are the contract that every registry keys on. `seed.ts` upserts them idempotently.
 - **Zap definition**: `Zap` (with an optional custom `name`, an `enabled` flag and `nextRunAt` for scheduled zaps), `Trigger` (with its own flat `metadata`, such as `{ "interval": "hourly" }`) and `Action`. Editing a zap replaces its `Action` rows in one transaction. Deleting a zap cascades in the database to its trigger, actions, runs and pending outbox rows. A queued stage for a deleted zap finds no run, so the worker logs it and skips it. `Action.sortingOrder` (0-based) is the stage number, and `Action.metadata` is a flat map of template strings such as `{ "email": "{email}" }`.
 - **Execution**: `ZapRun.metadata` holds the raw webhook body, `ZapRun.actions` is a copy of the zap's steps taken when the run started (connector id, name and settings per step), and `status` (`queued`, `running`, `success`, `failed`, `halted`) with `createdAt` and `finishedAt` track its progress. Runs from before run history are `unknown`. `ZapRunStep` holds one row per stage (unique on run and stage): the connector id, `status` (`success`, `failed`, `halted`, `skipped`), `error`, `output` and timings. A `ZapRunOutbox` row is a stage waiting to be published: it carries its `stage` and an `availableAt` time, and exists only until the processor publishes it.
 - **Auth**: `Session` and `OtpCode` store SHA-256 hashes only, never raw tokens or codes.
@@ -111,6 +112,7 @@ Each stage is its own Kafka message, so a failing step is retried alone and earl
 | Failure email can't be sent                     | It's logged and dropped. The run is already marked `failed`, and the stage isn't redelivered.                                                                                                                                                      |
 | Zap edited or turned off while a run is going   | The run finishes with the steps copied onto it at intake. Turning a zap off only stops new runs.                                                                                                                                                   |
 | Scheduled run due while the processor is down   | One run starts when the processor is back, and firings missed in between are skipped.                                                                                                                                                              |
+| An outgoing request hangs or is refused         | The guarded client gives up after 10 seconds or rejects an internal address. The step fails and retries like any other handler error.                                                                                                              |
 | Kafka unavailable                               | Runs accumulate safely in the outbox until the processor can publish.                                                                                                                                                                              |
 
 Known gaps (candidates for future work): replaying is manual (there is no automatic dead-letter retry); schedules are plain hourly or daily intervals with no time-of-day or time zone; runs and their steps are never pruned; and `userId` in the webhook URL isn't checked against the zap's owner.
@@ -142,15 +144,17 @@ The goal is to let users define and configure connectors without a code change. 
 
 - **Definitions move to data.** Add a field schema (for example, a `fields` JSON column) to `AvailableAction` and `AvailableTrigger`, and serve it from `/action/available` and `/trigger/available`. The builder then renders from the server schema and keeps `action-fields.ts` and `integration-catalog.ts` as fallbacks for built-ins. Code that consumes connectors already goes through these id-keyed lookups, not concrete types.
 - **Validation follows the schema.** The API validates `actionMetadata` against the connector's field schema with zod at the boundary, instead of today's flat string map.
-- **Per-user credentials.** A `Connection` table (user, connector id, encrypted secret) replaces server-wide secrets such as `SMTP_*` and `SOL_PRIVATE_KEY`. Secrets are encrypted at rest and never sent back to the browser.
+- **Per-user credentials.** A `Connection` table (user, connector id, encrypted secret) replaces server-wide secrets such as `SMTP_*` and `SOL_PRIVATE_KEY`. Today's per-step secrets (`secretFields`) are already masked in API responses but stored as plain text; `Connection` would encrypt them at rest and let steps share one credential.
 - **Handler context.** `ActionHandler` gains an optional context argument (for example, the resolved connection). Existing handlers ignore it, so they stay substitutable.
-- **Generic HTTP action.** The first user-defined connector is likely a configurable HTTP request (method, URL, headers and body template). It reuses the parser and needs no new worker code per connector.
+- **Generic HTTP action (built).** The `http` connector is a configurable request (method, URL, headers and body template). It reuses the parser and the guarded client, so a user-defined connector on top of it needs no new worker code.
 
 ## 8. Authentication and security
 
 - **Signup and login**: email and password, then a 6-digit email OTP (10 minutes, 5 attempts, 60 s resend cooldown). Google OAuth uses the authorization-code flow with a state cookie, and a verified provider email skips the OTP.
 - **Sessions**: a random token in the httpOnly `integrix_session` cookie (7 days, `SameSite=Lax`, `Secure` on https). Only its hash is stored, and logout or a password change revokes sessions.
 - **API**: credentialed CORS for `WEB_URL` only. Protected routes use `authMiddleware` and scope every query by `req.userId`. Bodies are validated with zod.
+- **Outgoing requests**: every connector that calls a URL goes through `apps/worker/src/http.ts`. It allows only `http` and `https`, refuses loopback, private, link-local, carrier-NAT, multicast and reserved addresses (IPv4, IPv6 and IPv4 written as IPv6), and checks the address inside the DNS lookup the connection itself uses, so a name can't resolve to something else between the check and the connect. It follows no redirects, stops after 10 seconds, reads at most 64 KB and names only the host in errors, because the URL can hold a credential.
+- **Connector secrets**: `AvailableAction.secretFields` lists the settings that are credentials. The API replaces their values with a mask in every zap response and, on edit, puts the stored value back when the mask returns unchanged for the same connector at the same position. The real values exist only in `Action.metadata` and in each run's step copy, which the API never returns.
 - **Webhooks** are unauthenticated by design: possession of the URL authorizes a run. Treat zap URLs as secrets.
 
 ## 9. Web app

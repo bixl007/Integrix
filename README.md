@@ -1,6 +1,6 @@
 # Integrix
 
-Integrix is a webhook-driven workflow automation platform in the spirit of Zapier. Create a zap with a webhook trigger, chain actions such as **Solana transfers** and **email**, and every POST to the zap's URL runs those actions in order. The platform is reliable by design (transactional outbox and Kafka) and sized to run cheaply on a single small host.
+Integrix is a webhook-driven workflow automation platform in the spirit of Zapier. Create a zap with a webhook trigger, chain actions such as **email**, **HTTP requests**, **Slack, Discord and Telegram messages** and **Solana transfers**, and every POST to the zap's URL runs those actions in order. The platform is reliable by design (transactional outbox and Kafka) and sized to run cheaply on a single small host.
 
 [![CI](https://github.com/bixl007/Integrix/actions/workflows/ci.yml/badge.svg)](https://github.com/bixl007/Integrix/actions/workflows/ci.yml)
 
@@ -16,7 +16,7 @@ flowchart LR
   Processor -->|stage 0| Kafka{{Kafka · zap-events}}
   Kafka --> Worker[worker]
   Worker -->|stage n+1| Kafka
-  Worker --> Actions[Solana · Email]
+  Worker --> Actions[Email · HTTP · Slack · Discord · Telegram · Solana]
 ```
 
 How a run flows:

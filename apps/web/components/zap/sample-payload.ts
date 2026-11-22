@@ -1,5 +1,7 @@
 // Same placeholder syntax as the worker's parser (apps/worker/src/parser.ts).
 const PLACEHOLDER = /\{([^{}]+)\}/g;
+const STEP_OUTPUT = /^steps\.\d+(\.|$)/;
+const FIELD_PATH = /^[\w$-]+(\.[\w$-]+)*$/;
 
 export interface SamplePayload {
   [key: string]: string | SamplePayload;
@@ -10,6 +12,8 @@ export function samplePayload(templates: string[]): SamplePayload {
   const payload: SamplePayload = {};
   for (const text of templates) {
     for (const [, path] of text.matchAll(PLACEHOLDER)) {
+      // Skip a flat JSON object in an HTTP body (not a field path) and step outputs (not in the request).
+      if (!FIELD_PATH.test(path.trim()) || STEP_OUTPUT.test(path.trim())) continue;
       const keys = path.trim().split('.');
       const leaf = keys.pop() ?? '';
       let node = payload;

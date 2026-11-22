@@ -50,7 +50,7 @@ const concepts: { term: string; body: string }[] = [
   { term: 'Action', body: 'A step that does something, such as sending an email or SOL.' },
   {
     term: 'Connector',
-    body: 'A trigger or action type you can pick in the builder (Webhook, Schedule, Email, Filter, Delay, Solana).',
+    body: 'A trigger or action type you can pick in the builder (Webhook, Schedule, Email, HTTP request, Slack, Discord, Telegram, Filter, Delay, Solana).',
   },
   {
     term: 'Run',
@@ -317,6 +317,29 @@ export default function DocsPage() {
           </div>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
             <li>
+              HTTP request calls a public <Code>http</Code> or <Code>https</Code> URL. It waits at
+              most 10 seconds, does not follow redirects, and fails the step on any response outside
+              2xx. Addresses inside the server&apos;s own network (localhost, private and link-local
+              ranges) are refused. Write headers as one <Code>Name: value</Code> per line; a body
+              without a <Code>Content-Type</Code> header is sent as JSON. Its output is{' '}
+              <Code>status</Code> and <Code>body</Code> (parsed when the response is JSON, up to 64
+              KB), so a later step can read <Code>{'{steps.2.body.id}'}</Code>.
+            </li>
+            <li>
+              Slack and Discord post to a webhook URL you create in the channel&apos;s settings.
+              Telegram sends as your bot: get a token from @BotFather and use the ID of a chat the
+              bot has been added to. All three are free. Each service limits how fast you can post
+              (roughly one message per second for Slack and for a Telegram chat, and 30 per minute
+              for a Discord webhook); a rejected message fails the step after its retries. Discord
+              messages are cut at 2,000 characters and Telegram messages at 4,096.
+            </li>
+            <li>
+              Webhook URLs, the bot token and HTTP headers are credentials. They are typed like a
+              password, stored on the server, never sent back to the browser (you see dots), and not
+              templated. When you edit a zap, leave the dots to keep the saved value. If you move a
+              step to another position, enter its credential again.
+            </li>
+            <li>
               Schedule starts a run every hour or every day, counted from when the zap was created,
               edited or switched back on. There is no request body, but templates can read{' '}
               <Code>{'{scheduledFor}'}</Code>. If the server was down when a run was due, one run
@@ -343,8 +366,10 @@ export default function DocsPage() {
               line break. Values from the payload are escaped, so they can&apos;t add markup.
             </li>
             <li>
-              Solana sends devnet SOL from the server&apos;s wallet (<Code>SOL_PRIVATE_KEY</Code>).
-              The amount is in SOL, for example <Code>0.01</Code>.
+              Solana sends devnet SOL from the server&apos;s wallet (<Code>SOL_PRIVATE_KEY</Code>)
+              and waits up to 10 seconds for confirmation. Its output is the <Code>signature</Code>{' '}
+              and whether it was <Code>confirmed</Code> in that time. The amount is in SOL, for
+              example <Code>0.01</Code>.
             </li>
           </ul>
         </Section>
@@ -398,7 +423,7 @@ export default function DocsPage() {
                             {i + 1}. {integrationCatalog[a.actionId]?.name ?? a.actionId}
                           </Td>
                           <Td mono>{key}</Td>
-                          <Td mono>{value}</Td>
+                          <Td mono>{value || '(your own value)'}</Td>
                         </tr>
                       )),
                     )}

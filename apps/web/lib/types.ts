@@ -4,6 +4,8 @@ export interface Integration {
   id: string;
   name: string;
   image: string;
+  /** Actions only: settings the API masks in responses. */
+  secretFields?: string[];
 }
 
 export interface ZapAction {

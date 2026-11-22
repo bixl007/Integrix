@@ -7,13 +7,13 @@ resource: ../
 
 # Connectors (triggers and actions)
 
-A connector is one string id (`webhook`, `schedule`, `email`, `filter`, `delay`, `solana`) shared by every layer. Extend the registries below and never branch on the id. See [ARCHITECTURE.md](../ARCHITECTURE.md#7-connector-model) for the design.
+A connector is one string id (`webhook`, `schedule`, `email`, `filter`, `delay`, `http`, `slack`, `discord`, `telegram`, `solana`) shared by every layer. Extend the registries below and never branch on the id. See [ARCHITECTURE.md](../ARCHITECTURE.md#7-connector-model) for the design.
 
 ## Add an action
 
-1. `packages/database/seed.ts`: add `{ id, name, image }` to `actions`. The seed upserts, so existing databases pick it up on the next `bun run dev` or Compose start.
-2. `apps/worker/src/actions/<id>.ts`: export an `ActionHandler`. Read settings from `metadata`, pass every user value through `parse(value, payload)` (`payload` is the request body plus earlier step outputs under `steps`, so `{steps.N.field}` works in every field), and throw on failure so the worker retries the stage and then marks the run failed. Optionally return `{ output }` (a JSON object stored on the run's step and shown in History), `{ halt: true }` to end the run without an error, or `{ delayMs }` to make the run wait before its next step. Never sleep in a handler. Keep it idempotent where possible and keep secrets out of logs. Register it in `actions/index.ts`.
-3. `apps/web/components/zap/action-fields.ts`: add the form fields. Each `key` is the metadata key the handler reads. A field with `options` renders a select (its `value`s are what the handler receives), and `optional` lets it be left empty.
+1. `packages/database/src/catalog.ts`: add `{ id, name, image }` to `builtInActions`, plus `secretFields` (the metadata keys that are credentials) when it has any. The seed upserts, so existing databases pick it up on the next `bun run dev` or Compose start.
+2. `apps/worker/src/actions/<id>.ts`: export an `ActionHandler`. Read settings from `metadata`, pass every user value through `parse(value, payload)` (`payload` is the request body plus earlier step outputs under `steps`, so `{steps.N.field}` works in every field), and throw on failure so the worker retries the stage and then marks the run failed. Optionally return `{ output }` (a JSON object stored on the run's step and shown in History), `{ halt: true }` to end the run without an error, or `{ delayMs }` to make the run wait before its next step. Never sleep in a handler. Call external URLs only through `request` or `postJson` in `src/http.ts` (10 second limit, no redirects, internal addresses refused, throws outside 2xx); never use raw `fetch`. Keep it idempotent where possible and keep secrets out of logs, errors and outputs. Register it in `actions/index.ts`.
+3. `apps/web/components/zap/action-fields.ts`: add the form fields. Each `key` is the metadata key the handler reads. Mark a credential with `secret: true` (it must also be in the catalog's `secretFields`; `action-fields.test.ts` checks the two agree). A field with `options` renders a select (its `value`s are what the handler receives), and `optional` lets it be left empty.
 4. `apps/web/components/zap/integration-catalog.ts`: add `{ name, kind: 'action', description }`. For a built-in icon, add an SVG to `components/ui/icons.tsx` and map it in `integration-icon.tsx`.
 5. Optional: add a sample to `zap-templates.ts`. It appears on `/docs` and opens prefilled in the builder through `/zap/create?template=<id>`.
 6. Docs: the `/docs` connector reference renders from steps 3 and 4. Add any server env vars to `.env.example` and the README table, and note behavior worth knowing (limits, costs, side effects) in the docs page connector notes.
@@ -24,6 +24,7 @@ Add a trigger the same way, using `triggers` in the seed and `kind: 'trigger'`. 
 
 - Never rename or delete a seeded id. Zaps reference it, and every registry keys on it.
 - Metadata stays a flat map of template strings until per-connector schemas exist.
+- Secret settings are used as typed, not templated, and are masked by the API. Don't put a credential in a field that isn't listed in `secretFields`.
 - `bun test` runs `zap-templates.test.ts`, which checks that samples use known connectors and exactly their form fields.
 
 ## Toward user-configurable connectors
