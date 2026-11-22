@@ -34,7 +34,7 @@ export default function SettingsPage() {
       ) : (
         // Forms own their state, seeded once from the loaded profile.
         <div className="flex flex-col gap-6">
-          <NameForm initial={data.profile.name} />
+          <NameForm initial={data.profile.name} avatar={data.profile.avatar} />
           <EmailForm initial={data.profile.email} />
           <PasswordForm hasPassword={data.profile.hasPassword} />
           <ConnectionsCard />

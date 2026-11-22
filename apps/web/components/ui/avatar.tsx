@@ -8,14 +8,26 @@ const initials = (name: string) =>
     .map((part) => part[0]!.toUpperCase())
     .join('');
 
-/** Initials avatar; `name` falls back to "?" while loading. */
-export function Avatar({ name, className }: { name?: string; className?: string }) {
+interface AvatarProps {
+  name?: string;
+  /** The user's photo; without one the initials are shown. */
+  src?: string | null;
+  className?: string;
+}
+
+/** The user's photo, or their initials; `name` falls back to "?" while loading. */
+export function Avatar({ name, src, className }: AvatarProps) {
+  const frame = cn('size-8 shrink-0 rounded-full', className);
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element -- a small data URL from the API, nothing to optimise
+    return <img src={src} alt="" aria-hidden className={cn(frame, 'object-cover')} />;
+  }
   return (
     <span
       aria-hidden
       className={cn(
-        'flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground',
-        className,
+        frame,
+        'flex items-center justify-center bg-primary text-xs font-semibold text-primary-foreground',
       )}
     >
       {name ? initials(name) : '?'}

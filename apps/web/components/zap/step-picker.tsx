@@ -13,6 +13,8 @@ import { IntegrationIcon } from './integration-icon';
 export interface PickedStep {
   integration: Integration;
   metadata: Record<string, string>;
+  /** The saved action this step came from, so it keeps its stored credential when it is moved. */
+  id?: string;
 }
 
 interface StepPickerProps {

@@ -41,6 +41,8 @@ export const ZapCreateSchema = z.object({
   actions: z
     .array(
       z.object({
+        // On an edit: the saved action this step came from, so a moved step keeps its credential.
+        id: z.string().optional(),
         availableActionId: z.string(),
         actionMetadata: MetadataSchema.optional(),
       }),
@@ -68,4 +70,16 @@ export const ConnectionCreateSchema = z.object({
   connectorId: z.string().min(1),
   name: z.string().trim().min(1).max(80),
   values: z.record(z.string().trim().min(1).max(500)),
+});
+
+// About 45 KB of image once decoded; the browser sends a 128 px JPEG of a few KB.
+const MAX_AVATAR_LENGTH = 60_000;
+
+/** A small image as a data URL, or null to go back to initials. */
+export const AvatarSchema = z.object({
+  avatar: z
+    .string()
+    .max(MAX_AVATAR_LENGTH)
+    .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/)
+    .nullable(),
 });

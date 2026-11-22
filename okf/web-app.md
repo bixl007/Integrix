@@ -19,7 +19,7 @@ resource: ../apps/web/app/
 - `zap/create` has an optional Name field (prefilled with a template's name) sent as `name` on publish. `zap/[id]` has two link tabs. Overview shows a curl whose body lists exactly the fields the zap's steps read, and opens `StepDetailsDialog` when an action step is clicked. History (`?tab=history`, the target of run-failure emails) renders `RunHistory`. The tab is read with `useSearchParams()`.
 - `zap/create` reads `?template=<id>` with `useSearchParams()` (the page is prerendered, so the `searchParams` prop would be empty) and renders the builder keyed by that id, so switching templates resets state. The builder prefills once, after both integration lists load. It shows an info alert when the server lacks a connector the template needs.
 - `(app)/usage` shows steps run per month from `GET /usage`: this month's count and a bar per month for the last six, drawn with plain elements and tokens (no chart library).
-- `(app)/settings` ends with the `ConnectionsCard`, which loads on its own and has its own loading, empty and error states.
+- `(app)/settings` starts with the Profile card (photo and name) and ends with the `ConnectionsCard`, which loads on its own and has its own loading, empty and error states.
 - Pages render loading (`Skeleton`), empty, error (`Alert`) and success states. Keep all four when changing a page.
 - `next.config.ts` builds a standalone server, sets security headers and traces from the monorepo root. Lint runs at the repo root, not in `next build`.
 - Verify with `bun run typecheck` and `bun run build`, then check affected routes with `bun run dev` in light and dark themes.

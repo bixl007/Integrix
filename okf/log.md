@@ -1,5 +1,9 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (avatar, reorder, select)
+
+- Users can upload a profile photo (`User.avatar`, migration `user_avatar`, `PUT /api/v1/profile/avatar`; cropped to a 128 px JPEG in the browser). Builder steps can be reordered by dragging or with move buttons, and a moved step keeps its stored credential because actions now carry their saved `id` on edit. `Select` draws its own chevron so it lines up with inputs.
+
 ## 2026-11-22 (landing page)
 
 - The landing page now reflects the current product: its integrations grid renders from the connector catalog and the webhook sender presets, and the hero flow, features and steps cover schedules, filters, delays, step outputs, run history and replay, signed webhooks and connections.

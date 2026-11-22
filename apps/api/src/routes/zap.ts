@@ -15,6 +15,7 @@ const zapInclude = {
 type Metadata = Record<string, string>;
 
 interface StoredAction {
+  id?: string;
   actionId: string;
   metadata: unknown;
   type: { secretFields: string[] };
@@ -63,12 +64,13 @@ async function resolveTrigger(
 }
 
 interface ActionInput {
+  id?: string;
   availableActionId: string;
   actionMetadata?: Metadata;
 }
 
 /**
- * Turns request actions into rows, swapping an unchanged mask for the secret stored at the same position.
+ * Turns request actions into rows, swapping an unchanged mask for the secret of the step it was before the edit.
  * Returns an error message when an action id is unknown or a secret has to be entered again.
  */
 async function resolveActions(
@@ -88,7 +90,8 @@ async function resolveActions(
   for (const [index, action] of actions.entries()) {
     const fields = secretFields.get(action.availableActionId);
     if (!fields) return { error: `Unknown action "${action.availableActionId}"` };
-    const previous = stored[index];
+    // The step it was before the edit: by its saved id when the client sends one, else by position.
+    const previous = (action.id && stored.find((s) => s.id === action.id)) || stored[index];
     const restored = restoreSecrets(
       action.actionMetadata ?? {},
       fields,
