@@ -14,6 +14,7 @@ import { actionFields } from './action-fields';
 import { fieldSuggestions, type ZapSample } from './field-paths';
 import { StepConnector, StepNode } from './step-node';
 import { StepPicker, type PickedStep } from './step-picker';
+import { webhookSender } from './webhook-senders';
 import { templateSteps, type ZapTemplate } from './zap-templates';
 
 /** Labels of the required settings a step still lacks (a template leaves credentials empty). */
@@ -74,6 +75,10 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
       setSteps(resolved.steps);
     }
   }
+
+  // Before the first real request, suggest fields from the chosen sender's example payload.
+  const preset = webhookSender(trigger?.metadata.sender).samplePayload;
+  const presetSample = preset ? { payload: preset, steps: [] } : undefined;
 
   const incomplete = [trigger, ...steps].flatMap((step, i) => {
     const missing = step ? missingSettings(step) : [];
@@ -199,7 +204,9 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
           }
           initial={editing === 'trigger' ? trigger : steps[editing]}
           suggestions={
-            editing === 'trigger' ? undefined : fieldSuggestions(sample.data?.sample, editing)
+            editing === 'trigger'
+              ? undefined
+              : fieldSuggestions(sample.data?.sample ?? presetSample, editing)
           }
           onPick={onPick}
           onClose={() => setEditing(null)}

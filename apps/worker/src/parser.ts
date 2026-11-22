@@ -13,8 +13,9 @@ function resolve(values: JsonValue, path: string): JsonValue | undefined {
         return undefined;
       }
     }
-    if (current === null || typeof current !== 'object' || Array.isArray(current)) return undefined;
-    current = current[key];
+    if (current === null || typeof current !== 'object') return undefined;
+    // An array is read by position: {items.0.name}.
+    current = Array.isArray(current) ? current[Number(key)] : current[key];
   }
   return current;
 }

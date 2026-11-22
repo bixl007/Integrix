@@ -1,3 +1,5 @@
+import { webhookSenders } from './webhook-senders';
+
 // Config fields per connector id (AvailableAction.id or AvailableTrigger.id). Add an entry to support a new connector's UI.
 export interface ActionField {
   key: string;
@@ -11,9 +13,29 @@ export interface ActionField {
   optional?: boolean;
   /** A credential: typed like a password, and the API returns a mask instead of the value. */
   secret?: boolean;
+  /** Help text under the field. */
+  hint?: string;
 }
 
 export const actionFields: Record<string, ActionField[]> = {
+  webhook: [
+    {
+      key: 'sender',
+      label: 'Sender',
+      placeholder: 'github',
+      options: webhookSenders.map((s) => ({ value: s.id, label: s.name })),
+      optional: true,
+      hint: 'Decides which signature header is checked when a secret is set.',
+    },
+    {
+      key: 'secret',
+      label: 'Signing secret',
+      placeholder: 'whsec_...',
+      optional: true,
+      secret: true,
+      hint: 'Leave empty to accept any request to the zap URL.',
+    },
+  ],
   schedule: [
     {
       key: 'interval',

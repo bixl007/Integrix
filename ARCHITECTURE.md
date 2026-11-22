@@ -30,15 +30,15 @@ flowchart LR
   API --> SMTP
 ```
 
-| Service             | Responsibility                                                                        | Talks to                                | State                         |
-| ------------------- | ------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------- |
-| `apps/web`          | UI: marketing site, docs, auth screens, zap builder and dashboard                     | api (browser `fetch`)                   | none (cookie in browser)      |
-| `apps/api`          | Auth (email OTP, Google OAuth, cookie sessions), profile, zap CRUD, connector catalog | Postgres, SMTP                          | stateless                     |
-| `apps/hooks`        | Public webhook intake; records a run and its outbox row atomically                    | Postgres                                | stateless                     |
-| `apps/processor`    | Moves due outbox rows into Kafka and starts runs for scheduled zaps that are due      | Postgres, Kafka                         | stateless (outbox is the log) |
-| `apps/worker`       | Runs one action per message, records the step, queues the next stage, commits         | Postgres, Kafka, SMTP, RPC, public HTTP | Kafka consumer group offsets  |
-| `packages/database` | Prisma schema, migrations, seed, shared client                                        | —                                       | —                             |
-| `packages/mailer`   | One SMTP transport shared by the API (OTP) and the worker (Email action, run alerts)  | SMTP                                    | —                             |
+| Service             | Responsibility                                                                       | Talks to                                | State                         |
+| ------------------- | ------------------------------------------------------------------------------------ | --------------------------------------- | ----------------------------- |
+| `apps/web`          | UI: marketing site, docs, auth screens, zap builder and dashboard                    | api (browser `fetch`)                   | none (cookie in browser)      |
+| `apps/api`          | Auth (email OTP, Google OAuth, cookie sessions), profile, zap CRUD, catalog, usage   | Postgres, SMTP                          | stateless                     |
+| `apps/hooks`        | Public webhook intake; checks owner and signature, records a run and its outbox row  | Postgres                                | stateless                     |
+| `apps/processor`    | Moves due outbox rows into Kafka and starts runs for scheduled zaps that are due     | Postgres, Kafka                         | stateless (outbox is the log) |
+| `apps/worker`       | Runs one action per message, records the step, queues the next stage, commits        | Postgres, Kafka, SMTP, RPC, public HTTP | Kafka consumer group offsets  |
+| `packages/database` | Prisma schema, migrations, seed, shared client                                       | —                                       | —                             |
+| `packages/mailer`   | One SMTP transport shared by the API (OTP) and the worker (Email action, run alerts) | SMTP                                    | —                             |
 
 Every backend service imports `@integrix/database`, so there is one schema and one client for the whole monorepo.
 
@@ -74,7 +74,8 @@ sequenceDiagram
   participant K as Kafka (zap-events)
   participant W as worker
   C->>H: POST /hooks/catch/:userId/:zapId {json}
-  H->>DB: load zap (404 if unknown, 403 if off)
+  H->>DB: load zap (404 if unknown or not the owner's, 403 if off)
+  H->>H: check the signature when the trigger has a secret (401 if wrong)
   H->>DB: tx: insert ZapRun (with a copy of the steps) + ZapRunOutbox
   H-->>C: 200 { message: "Webhook received" }
   loop poll (1s → 5s back-off when idle)
@@ -94,7 +95,7 @@ sequenceDiagram
   W->>K: commit offset
 ```
 
-1. **Intake** (`hooks`): it loads the zap, answering 404 for an unknown id or a zap whose trigger isn't a webhook, and 403 for a zap that is turned off. The body (100 KB max) becomes `ZapRun.metadata`, and the zap's steps are copied to `ZapRun.actions`, so editing the zap later never changes a run in progress. The run and outbox rows are written in one transaction, so an accepted request can't be lost and a failed write leaves nothing behind. The handler makes no external calls, which keeps it fast.
+1. **Intake** (`hooks`): it loads the zap, answering 404 for an unknown id, a user id in the URL that isn't the owner's, or a zap whose trigger isn't a webhook, and 403 for a zap that is turned off. If the trigger has a signing secret, the request must pass that sender's signature check, computed over the raw body, or it gets a 401. The body (100 KB max) becomes `ZapRun.metadata`, and the zap's steps are copied to `ZapRun.actions`, so editing the zap later never changes a run in progress. The run and outbox rows are written in one transaction, so an accepted request can't be lost and a failed write leaves nothing behind. The handler makes no external calls, which keeps it fast.
 2. **Publish** (`processor`): it ensures the topic exists (1 partition, RF 1), then drains the outbox in batches, taking only rows whose `availableAt` has passed and publishing each at its own `stage`. Hooks writes stage 0 rows that are due at once. A Delay step makes the worker write the next stage with a future `availableAt` (the run shows as `waiting`), so a run can wait for days without the worker sleeping, and replaying a failed run writes a row for its failed stage after refreshing the run's step copy from the zap's current steps. Every 30 seconds the same loop also looks for enabled zaps whose `nextRunAt` has passed: in one transaction it moves `nextRunAt` to the next firing and writes a run plus its stage 0 outbox row. Firings missed while the processor was down are skipped, not run in a burst. When the outbox is empty, polling backs off exponentially to 5 s; after a full batch it polls again immediately.
 3. **Execute** (`worker`, consumer group `main-worker`, manual commits): it takes the step at index `stage` from the run's copied steps (runs from before the copy existed fall back to the zap's current actions) and resolves its handler from the registry. The worker fills the templates from the payload and awaits the handler, which may return `{ output?, halt? }`. It then writes the step's result and the run's new status in one transaction, publishes `stage + 1` straight to Kafka if the step passed and more actions remain, and only after that commits the offset. A step that returns `delayMs` makes the worker park the next stage in the outbox instead of publishing it. A step that returns `halt` ends the run as `halted` without an error; the Filter action does this when its condition fails.
 
@@ -115,7 +116,7 @@ Each stage is its own Kafka message, so a failing step is retried alone and earl
 | An outgoing request hangs or is refused         | The guarded client gives up after 10 seconds or rejects an internal address. The step fails and retries like any other handler error.                                                                                                              |
 | Kafka unavailable                               | Runs accumulate safely in the outbox until the processor can publish.                                                                                                                                                                              |
 
-Known gaps (candidates for future work): replaying is manual (there is no automatic dead-letter retry); schedules are plain hourly or daily intervals with no time-of-day or time zone; runs and their steps are never pruned; and `userId` in the webhook URL isn't checked against the zap's owner.
+Known gaps (candidates for future work): replaying is manual (there is no automatic dead-letter retry); schedules are plain hourly or daily intervals with no time-of-day or time zone; runs and their steps are never pruned (so the usage counts drop when a zap is deleted); and connector and webhook secrets are stored as plain text.
 
 ## 6. Templating
 
@@ -155,11 +156,11 @@ The goal is to let users define and configure connectors without a code change. 
 - **API**: credentialed CORS for `WEB_URL` only. Protected routes use `authMiddleware` and scope every query by `req.userId`. Bodies are validated with zod.
 - **Outgoing requests**: every connector that calls a URL goes through `apps/worker/src/http.ts`. It allows only `http` and `https`, refuses loopback, private, link-local, carrier-NAT, multicast and reserved addresses (IPv4, IPv6 and IPv4 written as IPv6), and checks the address inside the DNS lookup the connection itself uses, so a name can't resolve to something else between the check and the connect. It follows no redirects, stops after 10 seconds, reads at most 64 KB and names only the host in errors, because the URL can hold a credential.
 - **Connector secrets**: `AvailableAction.secretFields` lists the settings that are credentials. The API replaces their values with a mask in every zap response and, on edit, puts the stored value back when the mask returns unchanged for the same connector at the same position. The real values exist only in `Action.metadata` and in each run's step copy, which the API never returns.
-- **Webhooks** are unauthenticated by design: possession of the URL authorizes a run. Treat zap URLs as secrets.
+- **Webhooks**: the URL's user id must be the zap owner's. A trigger without a signing secret accepts any request to its URL, so such a URL should be treated as a password. With a secret, `apps/hooks/src/signatures.ts` verifies each request through a registry keyed by the trigger's `sender` setting: the secret or an HMAC in an Integrix header (generic), `X-Hub-Signature-256` (GitHub), `Stripe-Signature` and `Calendly-Webhook-Signature` (timestamped, with a replay window), `X-Shopify-Hmac-Sha256`, `Typeform-Signature`, `X-Cal-Signature-256` (Cal.com), and an `Authorization` header that equals the secret (Helius). Comparisons are constant-time and use the raw request bytes. The secret is a trigger setting listed in `AvailableTrigger.secretFields`, so the API masks it like any connector secret.
 
 ## 9. Web app
 
-- **Route groups**: `(marketing)` is public and holds the landing page and `/docs`, both static server components. `(auth)` holds login and signup. `(app)` holds the dashboard, integrations, settings and the zap builder and detail pages, behind `RequireAuth`. The zap page has Overview and History tabs; History lists the latest runs and their steps.
+- **Route groups**: `(marketing)` is public and holds the landing page and `/docs`, both static server components. `(auth)` holds login and signup. `(app)` holds the dashboard, integrations, usage, settings and the zap builder and detail pages, behind `RequireAuth`. The zap page has Overview and History tabs; History lists the latest runs and their steps.
 - **Data**: `lib/api.ts` is the only backend client. `useApi` handles GETs and `useSession` is the single session store.
 - **Builder**: `ZapBuilder` picks connectors through `StepPicker` and the `action-fields` registry. It publishes a new zap with `POST /api/v1/zap` and saves an edit (`/zap/[id]/edit`) with `PUT /api/v1/zap/:zapId`. `/zap/create?template=<id>` prefills it from `zap-templates.ts`.
 - **Design system**: monochrome tokens in `globals.css` and primitives in `components/ui`. See [okf/design-system.md](okf/design-system.md).

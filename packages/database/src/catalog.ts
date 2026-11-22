@@ -3,6 +3,8 @@ interface CatalogEntry {
   id: string;
   name: string;
   image: string;
+  /** Settings that are credentials: the API masks them in responses. */
+  secretFields?: string[];
 }
 
 /** Built-in triggers. Never rename or remove an id: zaps and every registry key on it. */
@@ -12,13 +14,14 @@ export const builtInTriggers: CatalogEntry[] = [
     name: 'Webhook',
     image:
       'https://imgs.search.brave.com/jt-nuqrQTc8sUDegjW5IknnypbZm-onodGbopopEoiQ/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9jZG4u/aWNvbnNjb3V0LmNv/bS9pY29uL2ZyZWUv/cG5nLTI1Ni9mcmVl/LXdlYmhvb2tzLWlj/b24tZG93bmxvYWQt/aW4tc3ZnLXBuZy1n/aWYtZmlsZS1mb3Jt/YXRzLS1icmFuZC1j/b21wYW55LWxvZ28t/d29ybGQtbG9nb3Mt/dm9sLTMtcGFjay1p/Y29ucy0yODI0MjUu/cG5nP2Y9d2VicCZ3/PTI1Ng',
+    secretFields: ['secret'],
   },
   // Built-in steps render a local icon in the web app, so they need no image.
   { id: 'schedule', name: 'Schedule', image: '' },
 ];
 
-/** Built-in actions. `secretFields` lists the settings the API masks in responses. */
-export const builtInActions: (CatalogEntry & { secretFields?: string[] })[] = [
+/** Built-in actions. */
+export const builtInActions: CatalogEntry[] = [
   {
     id: 'solana',
     name: 'Solana',

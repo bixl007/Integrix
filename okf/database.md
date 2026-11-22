@@ -13,7 +13,7 @@ resource: ../packages/database/
 - Scheduling (migration `delay_schedule`): `Trigger.metadata` holds a trigger's flat string settings and `Zap.nextRunAt` (indexed) is when a scheduled zap fires next. `src/schedule.ts` holds the `scheduleIntervals` registry (`hourly`, `daily`) with `firstRunAt` (used by the API) and `nextRunAfter` (used by the processor), covered by `schedule.test.ts`.
 - `src/index.ts` re-exports `PrismaClient`, the model types and the JSON types (`JsonObject`, `JsonValue`). Services import from `@integrix/database`, never `@prisma/client` directly.
 - Schema changes: edit `schema.prisma`, run `bunx prisma migrate dev --name <change>` from this folder with `DATABASE_URL` set, and commit the new folder in `migrations/`. Don't edit applied migrations.
-- `src/catalog.ts` is the built-in catalog as plain data (`builtInTriggers`, `builtInActions` with optional `secretFields`). `AvailableAction.secretFields` (migration `action_secret_fields`) lists the metadata keys the API must mask.
+- `src/catalog.ts` is the built-in catalog as plain data (`builtInTriggers`, `builtInActions` with optional `secretFields`). `AvailableAction.secretFields` (migration `action_secret_fields`) and `AvailableTrigger.secretFields` (migration `trigger_secret_fields`) list the metadata keys the API must mask.
 - `seed.ts` upserts the built-in triggers and actions from the catalog idempotently and brings `secretFields` up to date on existing rows. It runs on `bun run dev` and in the Compose `migrate` job. The IDs (`webhook`, `schedule`, `email`, `filter`, `delay`, `solana`) are contracts used by the worker and web registries.
 - Scripts read the root `.env` through `bun --env-file`. Verify with `bun run db:generate` and `bun run typecheck`.
 

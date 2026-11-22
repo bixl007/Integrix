@@ -1,11 +1,21 @@
 import { expect, test } from 'bun:test';
 import { fieldPaths, fieldSuggestions } from './field-paths';
 
-test('lists nested values, treating arrays as one value', () => {
-  expect(fieldPaths({ name: 'Ada', user: { email: 'a@b.co' }, cart: ['pen'] })).toEqual([
+test('lists nested values; an array is offered whole and by its first item', () => {
+  expect(fieldPaths({ name: 'Ada', user: { email: 'a@b.co' }, cart: [{ sku: 'pen' }] })).toEqual([
     'name',
     'user.email',
     'cart',
+    'cart.0.sku',
+  ]);
+  expect(fieldPaths({ tags: [] })).toEqual(['tags']);
+});
+
+test('a list body is read by position', () => {
+  expect(fieldPaths([{ signature: 'abc', transfers: [{ amount: 1 }] }])).toEqual([
+    '0.signature',
+    '0.transfers',
+    '0.transfers.0.amount',
   ]);
 });
 

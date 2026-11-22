@@ -1,5 +1,9 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (webhook security, sender presets, usage)
+
+- Hooks now checks that the URL's user id is the zap owner's and, when the webhook trigger has a `secret`, verifies the sender's signature over the raw body (`src/signatures.ts`: generic, GitHub, Stripe, Shopify, Typeform, Calendly, Cal.com, Helius). Trigger secrets are masked through `AvailableTrigger.secretFields` (migration `trigger_secret_fields`). Added the `webhook-senders.ts` presets with example payloads, a "Webhook senders" docs section, array positions in templates (`{0.signature}`), `GET /api/v1/usage` and the Usage page.
+
 ## 2026-11-22 (HTTP, Slack, Discord, Telegram)
 
 - Added the `http`, `slack`, `discord` and `telegram` connectors with one sample template each, and the worker's guarded HTTP client (`src/http.ts`: no internal addresses, no redirects, 10 second limit). Action fields can be `secret`: `AvailableAction.secretFields` (migration `action_secret_fields`) drives masking in API responses and restoring on edit. The built-in catalog moved to `packages/database/src/catalog.ts`. Solana confirmation is now limited to 10 seconds and its output is `{ signature, confirmed }`. The builder blocks saving while a required setting is empty.

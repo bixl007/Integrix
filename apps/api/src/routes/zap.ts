@@ -20,15 +20,47 @@ interface StoredAction {
   type: { secretFields: string[] };
 }
 
+interface StoredTrigger {
+  triggerId: string;
+  metadata: unknown;
+  type: { secretFields: string[] };
+}
+
 /** The zap as the client may see it: secret settings are replaced by a mask. */
-const maskZap = <Z extends { actions: StoredAction[] }>(zap: Z): Z => ({
+const maskZap = <Z extends { actions: StoredAction[]; trigger: StoredTrigger | null }>(
+  zap: Z,
+): Z => ({
   ...zap,
+  // Trigger and action metadata are only ever written as flat string maps (zod, below).
+  trigger: zap.trigger && {
+    ...zap.trigger,
+    metadata: maskSecrets((zap.trigger.metadata ?? {}) as Metadata, zap.trigger.type.secretFields),
+  },
   actions: zap.actions.map((a) => ({
     ...a,
-    // Action metadata is only ever written as a flat string map (zod, below).
     metadata: maskSecrets((a.metadata ?? {}) as Metadata, a.type.secretFields),
   })),
 });
+
+/** Trigger settings ready to store, or an error message; an unchanged mask keeps the stored secret. */
+async function resolveTrigger(
+  triggerId: string,
+  metadata: Metadata,
+  stored?: StoredTrigger | null,
+) {
+  const type = await prismaClient.availableTrigger.findUnique({ where: { id: triggerId } });
+  if (!type) return { error: `Unknown trigger "${triggerId}"` };
+  if (metadata.interval !== undefined && !(metadata.interval in scheduleIntervals)) {
+    return { error: 'Unknown schedule interval' };
+  }
+  const restored = restoreSecrets(
+    metadata,
+    type.secretFields,
+    stored?.triggerId === triggerId ? (stored.metadata as Metadata) : undefined,
+  );
+  if ('missing' in restored) return { error: 'Enter the trigger secret again' };
+  return { metadata: restored.metadata };
+}
 
 interface ActionInput {
   availableActionId: string;
@@ -65,10 +97,6 @@ async function resolveActions(actions: ActionInput[], stored: StoredAction[] = [
   return { rows };
 }
 
-/** True when trigger settings name a schedule interval the processor doesn't know. */
-const unknownInterval = (triggerMetadata: Record<string, string>) =>
-  triggerMetadata.interval !== undefined && !(triggerMetadata.interval in scheduleIntervals);
-
 zapRouter.post('/', authMiddleware, async (req, res) => {
   const parsed = ZapCreateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -76,11 +104,13 @@ zapRouter.post('/', authMiddleware, async (req, res) => {
     return;
   }
 
-  const { name, availableTriggerId, triggerMetadata = {}, actions } = parsed.data;
-  if (unknownInterval(triggerMetadata)) {
-    res.status(400).json({ message: 'Unknown schedule interval' });
+  const { name, availableTriggerId, actions } = parsed.data;
+  const trigger = await resolveTrigger(availableTriggerId, parsed.data.triggerMetadata ?? {});
+  if (!trigger.metadata) {
+    res.status(400).json({ message: trigger.error });
     return;
   }
+  const triggerMetadata = trigger.metadata;
   const resolved = await resolveActions(actions);
   if (!resolved.rows) {
     res.status(400).json({ message: resolved.error });
@@ -236,13 +266,19 @@ zapRouter.put('/:zapId', authMiddleware, async (req, res) => {
     res.status(400).json({ message: 'Invalid data' });
     return;
   }
-  const { name, availableTriggerId, triggerMetadata = {}, actions } = parsed.data;
-  if (unknownInterval(triggerMetadata)) {
-    res.status(400).json({ message: 'Unknown schedule interval' });
-    return;
-  }
+  const { name, availableTriggerId, actions } = parsed.data;
   const zapId = String(req.params.zapId);
   const where = { id: zapId, userId: req.userId };
+  const trigger = await resolveTrigger(
+    availableTriggerId,
+    parsed.data.triggerMetadata ?? {},
+    await prismaClient.trigger.findFirst({ where: { zap: where }, include: { type: true } }),
+  );
+  if (!trigger.metadata) {
+    res.status(400).json({ message: trigger.error });
+    return;
+  }
+  const triggerMetadata = trigger.metadata;
   const stored = await prismaClient.action.findMany({
     where: { zap: where },
     include: { type: true },

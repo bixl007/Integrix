@@ -91,7 +91,8 @@ export function StepPicker({
           {suggestions.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <p className="text-xs text-muted-foreground">
-                Fields from the latest run. Click one to insert it into the field you last edited.
+                Fields from the latest run, or from the sender&apos;s example before the first one.
+                Click one to insert it into the field you last edited.
               </p>
               <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
                 {suggestions.map((s) => (
@@ -112,9 +113,14 @@ export function StepPicker({
               name: f.key,
               label: f.label,
               required: !f.optional,
-              hint: f.secret
-                ? 'Kept on the server and hidden after you save. Leave the dots to keep the saved value.'
-                : undefined,
+              hint:
+                [
+                  f.hint,
+                  f.secret &&
+                    'Kept on the server and hidden after you save. Leave the dots to keep the saved value.',
+                ]
+                  .filter(Boolean)
+                  .join(' ') || undefined,
               defaultValue:
                 initial?.integration.id === selected.id ? initial.metadata[f.key] : undefined,
             };

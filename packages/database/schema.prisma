@@ -104,10 +104,12 @@ model AvailableAction {
 }
 
 model AvailableTrigger {
-  id       String    @id @default(uuid())
-  name     String
-  image    String
-  triggers Trigger[]
+  id           String    @id @default(uuid())
+  name         String
+  image        String
+  /// Metadata keys holding credentials; the API never returns their values.
+  secretFields String[]  @default([])
+  triggers     Trigger[]
 }
 
 model ZapRun {
