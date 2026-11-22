@@ -1,5 +1,9 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (on/off and edit)
+
+- Zaps can be turned off (`Zap.enabled`, `PATCH { enabled }`, the `Switch` primitive and `ZapToggle`) and edited (`PUT /api/v1/zap/:zapId`, `/zap/[id]/edit`, the shared `ZapBuilder`). Hooks now answers 404 for an unknown zap and 403 for one that is off. Each run carries a copy of its steps (`ZapRun.actions`, migration `zap_enabled_run_snapshot`), which the worker runs instead of the zap's current actions. A zap now needs at least one action.
+
 ## 2026-11-22 (run history)
 
 - Runs now have a status and a step log (migration `run_history`: `ZapRun.status`/`createdAt`/`finishedAt`, the `ZapRunStep` table, and `stage` and `availableAt` on `ZapRunOutbox`). The processor publishes due outbox rows at their own stage. `ActionHandler` may return `{ output?, halt? }`, the worker records every step, skips a redelivered stage that already passed and emails the zap's owner when a run fails. Added `GET /api/v1/zap/:zapId/runs`, the History tab on the zap page, the `Tabs` primitive and 10-second SMTP timeouts in the mailer. The worker now reads `WEB_URL`.

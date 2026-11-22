@@ -38,15 +38,20 @@ export const ZapCreateSchema = z.object({
   name: zapName.optional(),
   availableTriggerId: z.string(),
   triggerMetadata: MetadataSchema.optional(),
-  actions: z.array(
-    z.object({
-      availableActionId: z.string(),
-      actionMetadata: MetadataSchema.optional(),
-    }),
-  ),
+  actions: z
+    .array(
+      z.object({
+        availableActionId: z.string(),
+        actionMetadata: MetadataSchema.optional(),
+      }),
+    )
+    .min(1),
 });
 
-export const ZapRenameSchema = z.object({ name: zapName });
+/** Renames a zap, turns it on or off, or both. */
+export const ZapUpdateSchema = z
+  .object({ name: zapName.optional(), enabled: z.boolean().optional() })
+  .refine((v) => v.name !== undefined || v.enabled !== undefined);
 
 export const UpdateProfileSchema = z.object({ name: z.string().trim().min(1).max(80) });
 

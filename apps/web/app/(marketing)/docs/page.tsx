@@ -41,7 +41,7 @@ type SectionId = (typeof toc)[number]['id'];
 const concepts: { term: string; body: string }[] = [
   {
     term: 'Zap',
-    body: 'One automation: a trigger followed by one or more actions. Rename or delete it from its menu.',
+    body: 'One automation: a trigger followed by one or more actions. Turn it off with its switch, and rename it, edit its steps or delete it from its menu.',
   },
   {
     term: 'Trigger',
@@ -105,7 +105,13 @@ const endpoints: { method: string; path: string; returns: string; note: string }
     method: 'PATCH',
     path: '/zap/:zapId',
     returns: '{ zap }',
-    note: 'Body { name }; empty resets the title',
+    note: 'Body { name?, enabled? }; an empty name resets the title',
+  },
+  {
+    method: 'PUT',
+    path: '/zap/:zapId',
+    returns: '{ zap }',
+    note: 'Same body as POST /zap; replaces the steps',
   },
   {
     method: 'DELETE',
@@ -389,6 +395,14 @@ export default function DocsPage() {
             <li>
               Delivery is at-least-once: after a crash or retry a step can run again, so prefer
               downstream systems that tolerate duplicates.
+            </li>
+            <li>
+              A zap that is turned off answers <Code>403</Code> and records nothing. An unknown zap
+              id answers <Code>404</Code>.
+            </li>
+            <li>
+              Editing a zap replaces its steps for new runs only. A run that already started
+              finishes with the steps it started with.
             </li>
             <li>
               The URL is unauthenticated. Treat it like a secret, especially for zaps that move

@@ -1,5 +1,4 @@
-import type { JsonObject } from '@integrix/database';
-import { Prisma, PrismaClient } from '@integrix/database';
+import { Prisma, PrismaClient, readRunActions, snapshotActions } from '@integrix/database';
 import { sendMail } from '@integrix/mailer';
 import { Kafka } from 'kafkajs';
 import { actionHandlers } from './actions';
@@ -36,8 +35,10 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
       steps: { where: { stage } },
     },
   });
-  const action = zapRun?.zap.actions.find((a) => a.sortingOrder === stage);
-  if (!zapRun || !action) {
+  // Runs from before step snapshots fall back to the zap's current actions.
+  const actions = zapRun && (readRunActions(zapRun.actions) ?? snapshotActions(zapRun.zap.actions));
+  const action = actions?.[stage];
+  if (!zapRun || !actions || !action) {
     console.warn(`No action for run ${zapRunId} stage ${stage}`);
     return;
   }
@@ -49,22 +50,22 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
     return;
   }
 
-  const handler = actionHandlers[action.type.id];
-  if (!handler) console.warn(`No handler registered for action "${action.type.id}"`);
+  const handler = actionHandlers[action.actionId];
+  if (!handler) console.warn(`No handler registered for action "${action.actionId}"`);
   const startedAt = new Date();
   // Heartbeats between attempts keep the consumer in its group during back-off.
   const result = await runStep(
     handler,
-    (action.metadata ?? {}) as JsonObject,
+    action.metadata,
     zapRun.metadata,
     RETRY_DELAYS_MS,
     heartbeat,
   );
   const finishedAt = new Date();
-  const status = runStatusAfter(result.status, stage >= zapRun.zap.actions.length - 1);
+  const status = runStatusAfter(result.status, stage >= actions.length - 1);
 
   const step = {
-    actionId: action.type.id,
+    actionId: action.actionId,
     status: result.status,
     error: result.error ?? null,
     output: result.output ?? Prisma.DbNull,
@@ -89,7 +90,7 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
 
   const attempts = RETRY_DELAYS_MS.length + 1;
   console.error(
-    `Run ${zapRunId} stopped at stage ${stage} (${action.type.id}) after ${attempts} attempts: ${result.error}`,
+    `Run ${zapRunId} stopped at stage ${stage} (${action.actionId}) after ${attempts} attempts: ${result.error}`,
   );
   try {
     await sendMail(
@@ -98,7 +99,7 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
         zapId: zapRun.zapId,
         zapName: zapRun.zap.name,
         stage,
-        actionName: action.type.name,
+        actionName: action.name,
         attempts,
         error: result.error,
       }),

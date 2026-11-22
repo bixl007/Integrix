@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { Alert } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { MoreIcon, PencilIcon, TrashIcon } from '@/components/ui/icons';
+import { LayersIcon, MoreIcon, PencilIcon, TrashIcon } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
-import { Menu, MenuItem } from '@/components/ui/menu';
+import { Menu, MenuItem, MenuLink } from '@/components/ui/menu';
 import { api } from '@/lib/api';
 import type { Zap } from '@/lib/types';
 import { stepsTitle, zapTitle } from './zap-title';
@@ -18,7 +18,7 @@ interface ZapActionsProps {
   side?: 'top' | 'bottom';
 }
 
-/** "More" menu with Rename and Delete, plus their dialogs. */
+/** "More" menu with Rename, Edit steps and Delete, plus the dialogs. */
 export function ZapActions({ zap, onRenamed, onDeleted, side }: ZapActionsProps) {
   const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null);
   const [pending, setPending] = useState(false);
@@ -56,6 +56,9 @@ export function ZapActions({ zap, onRenamed, onDeleted, side }: ZapActionsProps)
         <MenuItem onClick={() => setDialog('rename')}>
           <PencilIcon /> Rename
         </MenuItem>
+        <MenuLink href={`/zap/${zap.id}/edit`}>
+          <LayersIcon /> Edit steps
+        </MenuLink>
         <MenuItem
           onClick={() => setDialog('delete')}
           className="text-destructive hover:text-destructive"

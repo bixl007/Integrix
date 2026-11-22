@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { CopyButton } from '@/components/ui/copy-button';
 import { ArrowRightIcon } from '@/components/ui/icons';
@@ -19,6 +20,7 @@ export function ZapCard({ zap, onChange }: { zap: Zap; onChange: () => void }) {
           {zap.actions.map((a) => (
             <IntegrationIcon key={a.id} integration={a.type} />
           ))}
+          {!zap.enabled && <Badge className="ml-auto">Off</Badge>}
         </div>
         <div>
           <h3 className="truncate font-medium">

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prismaClient } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { ZapCreateSchema, ZapRenameSchema } from '../schemas';
+import { ZapCreateSchema, ZapUpdateSchema } from '../schemas';
 
 export const zapRouter = Router();
 
@@ -93,14 +93,48 @@ zapRouter.get('/:zapId/runs', authMiddleware, async (req, res) => {
 });
 
 zapRouter.patch('/:zapId', authMiddleware, async (req, res) => {
-  const parsed = ZapRenameSchema.safeParse(req.body);
+  const parsed = ZapUpdateSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ message: 'Name must be at most 80 characters' });
+    res.status(400).json({ message: 'Send a name of at most 80 characters, enabled, or both' });
     return;
   }
   const where = { id: String(req.params.zapId), userId: req.userId };
-  const { count } = await prismaClient.zap.updateMany({ where, data: { name: parsed.data.name } });
+  const { count } = await prismaClient.zap.updateMany({ where, data: parsed.data });
   if (count === 0) {
+    res.status(404).json({ message: 'Zap not found' });
+    return;
+  }
+  const zap = await prismaClient.zap.findFirst({ where, include: zapInclude });
+  res.json({ zap });
+});
+
+// Replaces the zap's steps; runs already started keep the steps copied onto them at intake.
+zapRouter.put('/:zapId', authMiddleware, async (req, res) => {
+  const parsed = ZapCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ message: 'Invalid data' });
+    return;
+  }
+  const { name, availableTriggerId, actions } = parsed.data;
+  const zapId = String(req.params.zapId);
+  const where = { id: zapId, userId: req.userId };
+
+  const found = await prismaClient.$transaction(async (tx) => {
+    const { count } = await tx.zap.updateMany({ where, data: { name } });
+    if (count === 0) return false;
+    await tx.trigger.update({ where: { zapId }, data: { triggerId: availableTriggerId } });
+    await tx.action.deleteMany({ where: { zapId } });
+    await tx.action.createMany({
+      data: actions.map((a, index) => ({
+        zapId,
+        actionId: a.availableActionId,
+        sortingOrder: index,
+        metadata: a.actionMetadata ?? {},
+      })),
+    });
+    return true;
+  });
+  if (!found) {
     res.status(404).json({ message: 'Zap not found' });
     return;
   }

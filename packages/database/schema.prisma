@@ -59,6 +59,8 @@ model Zap {
   id        String   @id @default(uuid())
   /// Custom title; null shows the "Trigger → Action" title.
   name      String?
+  /// False turns the zap off: hooks refuses new runs.
+  enabled   Boolean  @default(true)
   triggerId String
   userId    Int
   trigger   Trigger?
@@ -108,6 +110,8 @@ model ZapRun {
   status       String        @default("queued")
   createdAt    DateTime      @default(now())
   finishedAt   DateTime?
+  /// The zap's steps when the run started (RunAction[]); null on runs from before step snapshots.
+  actions      Json?
   zap          Zap           @relation(fields: [zapId], references: [id], onDelete: Cascade)
   zapRunOutbox ZapRunOutbox?
   steps        ZapRunStep[]
