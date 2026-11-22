@@ -4,7 +4,7 @@ This document explains how Integrix works end to end: the services, the data mod
 
 ## 1. What Integrix does
 
-A user builds a **zap**: one trigger (today, a webhook) followed by an ordered list of **actions** (Email, Solana). Every JSON `POST` to the zap's URL creates a **run**. The run's actions execute in order in the background, and `{placeholders}` in each action's settings are filled from the request body.
+A user builds a **zap**: one trigger (today, a webhook) followed by an ordered list of **actions** (Email, Filter, Solana). Every JSON `POST` to the zap's URL creates a **run**. The run's actions execute in order in the background, and `{placeholders}` in each action's settings are filled from the request body.
 
 ## 2. System overview
 
@@ -57,7 +57,7 @@ erDiagram
   ZapRun ||--o{ ZapRunStep : "records"
 ```
 
-- **Catalog tables**: `AvailableTrigger` and `AvailableAction` list the connector types. Their string ids (`webhook`, `email`, `solana`) are the contract that every registry keys on. `seed.ts` upserts them idempotently.
+- **Catalog tables**: `AvailableTrigger` and `AvailableAction` list the connector types. Their string ids (`webhook`, `email`, `filter`, `solana`) are the contract that every registry keys on. `seed.ts` upserts them idempotently.
 - **Zap definition**: `Zap` (with an optional custom `name` and an `enabled` flag), `Trigger` and `Action`. Editing a zap replaces its `Action` rows in one transaction. Deleting a zap cascades in the database to its trigger, actions, runs and pending outbox rows. A queued stage for a deleted zap finds no run, so the worker logs it and skips it. `Action.sortingOrder` (0-based) is the stage number, and `Action.metadata` is a flat map of template strings such as `{ "email": "{email}" }`.
 - **Execution**: `ZapRun.metadata` holds the raw webhook body, `ZapRun.actions` is a copy of the zap's steps taken when the run started (connector id, name and settings per step), and `status` (`queued`, `running`, `success`, `failed`, `halted`) with `createdAt` and `finishedAt` track its progress. Runs from before run history are `unknown`. `ZapRunStep` holds one row per stage (unique on run and stage): the connector id, `status` (`success`, `failed`, `halted`, `skipped`), `error`, `output` and timings. A `ZapRunOutbox` row is a stage waiting to be published: it carries its `stage` and an `availableAt` time, and exists only until the processor publishes it.
 - **Auth**: `Session` and `OtpCode` store SHA-256 hashes only, never raw tokens or codes.
@@ -95,7 +95,7 @@ sequenceDiagram
 
 1. **Intake** (`hooks`): it loads the zap, answering 404 for an unknown id and 403 for a zap that is turned off. The body (100 KB max) becomes `ZapRun.metadata`, and the zap's steps are copied to `ZapRun.actions`, so editing the zap later never changes a run in progress. The run and outbox rows are written in one transaction, so an accepted request can't be lost and a failed write leaves nothing behind. The handler makes no external calls, which keeps it fast.
 2. **Publish** (`processor`): it ensures the topic exists (1 partition, RF 1), then drains the outbox in batches, taking only rows whose `availableAt` has passed and publishing each at its own `stage`. Hooks writes stage 0 rows that are due at once; a later stage with a future `availableAt` is how a run can wait without the worker sleeping. When the outbox is empty, polling backs off exponentially to 5 s; after a full batch it polls again immediately.
-3. **Execute** (`worker`, consumer group `main-worker`, manual commits): it takes the step at index `stage` from the run's copied steps (runs from before the copy existed fall back to the zap's current actions) and resolves its handler from the registry. The worker fills the templates from the payload and awaits the handler, which may return `{ output?, halt? }`. It then writes the step's result and the run's new status in one transaction, publishes `stage + 1` straight to Kafka if the step passed and more actions remain, and only after that commits the offset. A step that returns `halt` ends the run as `halted` without an error.
+3. **Execute** (`worker`, consumer group `main-worker`, manual commits): it takes the step at index `stage` from the run's copied steps (runs from before the copy existed fall back to the zap's current actions) and resolves its handler from the registry. The worker fills the templates from the payload and awaits the handler, which may return `{ output?, halt? }`. It then writes the step's result and the run's new status in one transaction, publishes `stage + 1` straight to Kafka if the step passed and more actions remain, and only after that commits the offset. A step that returns `halt` ends the run as `halted` without an error; the Filter action does this when its condition fails.
 
 Each stage is its own Kafka message, so a failing step is retried alone and earlier steps aren't repeated. Database or Kafka errors (as opposed to a failing action) still throw, and Kafka redelivers the message once the outage clears.
 
@@ -116,7 +116,9 @@ Known gaps (candidates for future work): a failed run can't be replayed yet; run
 
 ## 6. Templating
 
-`apps/worker/src/parser.ts` replaces `{path}` with values from the payload. Dotted paths (`{user.email}`) walk nested objects, and string fields holding JSON are parsed on the way. Objects and arrays are inserted as JSON, and unknown or malformed placeholders are left unchanged. The parser is pure and covered by `parser.test.ts`.
+`apps/worker/src/parser.ts` replaces `{path}` with values from the template context. Dotted paths (`{user.email}`) walk nested objects, and string fields holding JSON are parsed on the way. Objects and arrays are inserted as JSON, and unknown or malformed placeholders are left unchanged. The parser is pure and covered by `parser.test.ts`.
+
+The context (`apps/worker/src/context.ts`) is the request body plus a `steps` object holding the output of every earlier step that succeeded, keyed by the step number the UI shows (the trigger is step 1, so stage 0 is step 2). `{steps.2.signature}` therefore reads the first action's output. A handler receives this context as its `payload` argument, so every connector gets step outputs without knowing about them.
 
 ## 7. Connector model
 

@@ -1,5 +1,9 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (filter, step outputs, field picker)
+
+- Added the `filter` connector (seed, worker `filterOperators` registry, form with a select, catalog, icon, a sample template). Templates can read earlier step outputs as `{steps.N.field}` through the worker's new template context, and Email now returns `{ to, subject }`. Added `GET /api/v1/zap/:zapId/sample`, the field suggestions in the step dialog (`field-paths.ts`), the `Select` primitive, and `options`/`optional` on action fields.
+
 ## 2026-11-22 (on/off and edit)
 
 - Zaps can be turned off (`Zap.enabled`, `PATCH { enabled }`, the `Switch` primitive and `ZapToggle`) and edited (`PUT /api/v1/zap/:zapId`, `/zap/[id]/edit`, the shared `ZapBuilder`). Hooks now answers 404 for an unknown zap and 403 for one that is off. Each run carries a copy of its steps (`ZapRun.actions`, migration `zap_enabled_run_snapshot`), which the worker runs instead of the zap's current actions. A zap now needs at least one action.

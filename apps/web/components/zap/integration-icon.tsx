@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react';
-import { MailIcon, SolanaIcon, WebhookIcon } from '@/components/ui/icons';
+import { FilterIcon, MailIcon, SolanaIcon, WebhookIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
 import type { Integration } from '@/lib/types';
 
@@ -8,6 +8,7 @@ const builtIn: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   webhook: WebhookIcon,
   solana: SolanaIcon,
   email: MailIcon,
+  filter: FilterIcon,
 };
 
 const frame =

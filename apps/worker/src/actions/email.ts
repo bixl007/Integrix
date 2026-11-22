@@ -12,4 +12,5 @@ export const emailAction: ActionHandler = async (metadata, payload) => {
   console.log(`Sending email to ${to}`);
   // The mailer adds the HTML version: paragraphs from blank lines, payload values escaped.
   await sendMail({ to, subject, text });
+  return { output: { to, subject } };
 };

@@ -68,6 +68,12 @@ export const ChevronDownIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const FilterIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+  </Icon>
+);
+
 export const ArrowRightIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5 12h14M12 5l7 7-7 7" />

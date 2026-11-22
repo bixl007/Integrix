@@ -12,7 +12,7 @@ resource: ../packages/database/
 - `ZapRun.actions` (nullable JSON, migration `zap_enabled_run_snapshot`) holds a `RunAction[]`: the zap's steps when the run started. `src/run-actions.ts` exports the `RunAction` type, `snapshotActions` (write side, used by every intake that creates a run) and `readRunActions` (read side, which returns `undefined` for anything that isn't a snapshot). `run-actions.test.ts` covers both.
 - `src/index.ts` re-exports `PrismaClient`, the model types and the JSON types (`JsonObject`, `JsonValue`). Services import from `@integrix/database`, never `@prisma/client` directly.
 - Schema changes: edit `schema.prisma`, run `bunx prisma migrate dev --name <change>` from this folder with `DATABASE_URL` set, and commit the new folder in `migrations/`. Don't edit applied migrations.
-- `seed.ts` upserts the built-in trigger and actions idempotently. It runs on `bun run dev` and in the Compose `migrate` job. The IDs (`webhook`, `email`, `solana`) are contracts used by the worker and web registries.
+- `seed.ts` upserts the built-in trigger and actions idempotently. It runs on `bun run dev` and in the Compose `migrate` job. The IDs (`webhook`, `email`, `filter`, `solana`) are contracts used by the worker and web registries.
 - Scripts read the root `.env` through `bun --env-file`. Verify with `bun run db:generate` and `bun run typecheck`.
 
 ## Mailer

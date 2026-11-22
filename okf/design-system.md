@@ -13,7 +13,7 @@ resource: ../apps/web/components/ui/
 - **Shape**: `rounded-md` (6px) for controls, `rounded-lg` (12px) for cards and dialogs, 1px borders and minimal shadows.
 - **Primitives**:
   - `button.tsx`: `Button` and `buttonVariants({ variant, size })` for styling links. Variants are primary, secondary, ghost and danger; sizes are sm, md, lg and icon.
-  - `input.tsx`: `Input` (with a password reveal) and `Textarea`, both with a label, hint and error wired via `aria-describedby`.
+  - `input.tsx`: `Input` (with a password reveal), `Textarea` and `Select` (a native select), each with a label, hint and error wired via `aria-describedby`.
   - `card.tsx`: `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent` and `CardFooter`.
   - `badge.tsx`, `alert.tsx` (with an error or status role), `skeleton.tsx`, `copy-button.tsx`, and `code-block.tsx` (a `pre` with a corner copy button, used for curl snippets).
   - `dialog.tsx`: a native `<dialog>` with focus trap and Esc to close.

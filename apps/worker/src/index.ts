@@ -2,6 +2,7 @@ import { Prisma, PrismaClient, readRunActions, snapshotActions } from '@integrix
 import { sendMail } from '@integrix/mailer';
 import { Kafka } from 'kafkajs';
 import { actionHandlers } from './actions';
+import { templateContext } from './context';
 import { failureMail } from './notify';
 import { runStatusAfter, runStep } from './stage';
 
@@ -32,7 +33,7 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
       zap: {
         include: { actions: { include: { type: true } }, user: { select: { email: true } } },
       },
-      steps: { where: { stage } },
+      steps: { where: { stage: { lte: stage } } },
     },
   });
   // Runs from before step snapshots fall back to the zap's current actions.
@@ -45,7 +46,7 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
   const next = { zapRunId, stage: stage + 1 };
 
   // A redelivered stage that already passed must not repeat its side effect.
-  if (zapRun.steps[0]?.status === 'success') {
+  if (zapRun.steps.find((s) => s.stage === stage)?.status === 'success') {
     if (zapRun.status === 'running') await publishStage(next);
     return;
   }
@@ -57,7 +58,7 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
   const result = await runStep(
     handler,
     action.metadata,
-    zapRun.metadata,
+    templateContext(zapRun.metadata, zapRun.steps, stage),
     RETRY_DELAYS_MS,
     heartbeat,
   );

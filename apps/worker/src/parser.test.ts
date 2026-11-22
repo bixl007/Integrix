@@ -13,6 +13,14 @@ describe('parse', () => {
     expect(parse('{user.email}', { user: '{"email":"x@y.z"}' })).toBe('x@y.z');
   });
 
+  test('uses the replacement for missing and null values when one is given', () => {
+    expect(parse('[{missing}][{empty}][{a}]', { a: 1, empty: null }, '')).toBe('[][][1]');
+  });
+
+  test('reads earlier step outputs like any nested value', () => {
+    expect(parse('{steps.2.signature}', { steps: { '2': { signature: 'abc' } } })).toBe('abc');
+  });
+
   test('leaves unknown or unterminated placeholders untouched', () => {
     expect(parse('{missing} and {open', { a: 1 })).toBe('{missing} and {open');
   });

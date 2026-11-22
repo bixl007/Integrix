@@ -12,6 +12,11 @@ export const integrationCatalog: Record<string, IntegrationInfo> = {
     kind: 'trigger',
     description: 'Start a run whenever your zap URL receives a POST with a JSON body.',
   },
+  filter: {
+    name: 'Filter',
+    kind: 'action',
+    description: 'Continue the run only when a condition holds. Otherwise the run ends as Halted.',
+  },
   solana: {
     name: 'Solana',
     kind: 'action',

@@ -97,3 +97,24 @@ export function Textarea({
     </Field>
   );
 }
+
+export function Select({
+  label,
+  hint,
+  error,
+  className,
+  ...props
+}: FieldProps & ComponentProps<'select'>) {
+  const id = useId();
+  return (
+    <Field id={id} label={label} hint={hint} error={error}>
+      <select
+        id={id}
+        aria-invalid={!!error || undefined}
+        aria-describedby={error || hint ? `${id}-desc` : undefined}
+        className={cn(fieldClasses, 'h-10', className)}
+        {...props}
+      />
+    </Field>
+  );
+}

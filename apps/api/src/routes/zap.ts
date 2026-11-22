@@ -61,6 +61,19 @@ zapRouter.get('/:zapId', authMiddleware, async (req, res) => {
   res.json({ zap });
 });
 
+// The latest request and its step outputs, which the builder turns into field suggestions.
+zapRouter.get('/:zapId/sample', authMiddleware, async (req, res) => {
+  const run = await prismaClient.zapRun.findFirst({
+    where: { zapId: String(req.params.zapId), zap: { userId: req.userId } },
+    select: {
+      metadata: true,
+      steps: { orderBy: { stage: 'asc' }, select: { stage: true, output: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json({ sample: run && { payload: run.metadata, steps: run.steps } });
+});
+
 // shortcut: latest 20 runs only, add cursor pagination when history has to reach further back.
 const RUN_HISTORY_LIMIT = 20;
 

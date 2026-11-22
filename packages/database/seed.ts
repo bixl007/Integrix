@@ -25,6 +25,8 @@ const actions = [
     image:
       'https://imgs.search.brave.com/vMXD5zEPHVEvZrWv_KRbb9E1hfOusHVCxhuYK1qyf4g/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/cG5nbWFydC5jb20v/ZmlsZXMvMTUvRW1h/aWwtU3ltYm9sLVBO/Ry1GaWxlLnBuZw',
   },
+  // Built-in steps render a local icon in the web app, so they need no image.
+  { id: 'filter', name: 'Filter', image: '' },
 ];
 
 async function main() {
