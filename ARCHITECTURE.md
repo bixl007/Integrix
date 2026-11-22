@@ -81,8 +81,8 @@ sequenceDiagram
   end
   K->>W: { zapRunId, stage }
   W->>DB: load run + zap + actions
-  W->>W: handler = actionHandlers[action.type.id]; parse templates; run
-  alt more actions
+  W->>W: look up handler by action id, fill templates, run it (retries on failure)
+  alt step succeeded and more actions remain
     W->>K: { zapRunId, stage: stage + 1 }
   end
   W->>K: commit offset
