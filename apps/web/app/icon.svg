@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Same mark as the navbar logo; colors follow the OS theme like bg-primary does. -->
+  <style>
+    .bg { fill: #171717; }
+    .fg { stroke: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #ededed; }
+      .fg { stroke: #0a0a0a; }
+    }
+  </style>
+  <rect class="bg" width="32" height="32" rx="7" />
+  <g class="fg" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" transform="translate(5.8 5.8) scale(0.85)">
+    <circle cx="5" cy="12" r="2.5" />
+    <circle cx="19" cy="5" r="2.5" />
+    <circle cx="19" cy="19" r="2.5" />
+    <path d="M7.3 11 16.7 6M7.3 13l9.4 5" />
+  </g>
+</svg>

@@ -1,26 +1,39 @@
-import type { Metadata } from "next";
-import { Outfit, Plus_Jakarta_Sans } from "next/font/google"; // eslint-disable-line @typescript-eslint/no-unused-vars
-import "./globals.css";
-import { Providers } from "@/components/Providers";
+import type { Metadata, Viewport } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
+import type { ReactNode } from 'react';
+import { Providers } from '@/components/providers';
+import './globals.css';
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
-const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta" });
+// Self-hosted at build time by next/font: no runtime request to Google.
+const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans', display: 'swap' });
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-    title: "Integrix",
-    description: "Automate your workflow",
+  title: { default: 'Integrix — Workflow automation', template: '%s · Integrix' },
+  description: 'Turn any webhook into a chain of actions: Solana transfers, emails and more.',
 };
 
-export default function RootLayout({
-    children,
-}: Readonly<{
-    children: React.ReactNode;
-}>) {
-    return (
-        <html lang="en" suppressHydrationWarning>
-            <body className={`${outfit.variable} ${jakarta.variable} font-sans antialiased`}>
-                <Providers>{children}</Providers>
-            </body>
-        </html>
-    );
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
+};
+
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable}`}
+    >
+      <body className="min-h-dvh">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
 }

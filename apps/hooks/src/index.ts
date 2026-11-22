@@ -1,37 +1,28 @@
-import express from "express";
-import { PrismaClient } from "@integrix/database";
+import { PrismaClient } from '@integrix/database';
+import express from 'express';
 
+const PORT = Number(process.env.HOOKS_PORT ?? 3002);
 const client = new PrismaClient();
 
 const app = express();
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(express.json({ limit: '100kb' }));
 
-// https://hooks.integrix.com/hooks/catch/:userId/:zapId
-app.post("/hooks/catch/:userId/:zapId", async (req, res) => {
-  const userId = req.params.userId;
-  const zapId = req.params.zapId;
-  const body = req.body;
-
-  // store in db
-  await client.$transaction(async (tx) => {
-    const run = await tx.zapRun.create({
-      data: {
-        zapId: zapId,
-        metadata: body,
-      },
-    });
-
-    await tx.zapRunOutbox.create({
-      data: {
-        zapRunId: run.id,
-      },
-    });
-  });
-  res.json({
-    message: "Webhook received",
-  });
+app.get('/health', (_req, res) => {
+  res.json({ ok: true });
 });
 
-app.listen(3002, () => {
-  console.log("Server started on port 3002");
+// Stores the run and its outbox row in one transaction; the processor publishes it.
+app.post('/hooks/catch/:userId/:zapId', async (req, res) => {
+  await client.$transaction(async (tx) => {
+    const run = await tx.zapRun.create({
+      data: { zapId: req.params.zapId, metadata: req.body ?? {} },
+    });
+    await tx.zapRunOutbox.create({ data: { zapRunId: run.id } });
+  });
+  res.json({ message: 'Webhook received' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Hooks listening on port ${PORT}`);
 });

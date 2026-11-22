@@ -1,0 +1,7 @@
+{
+  "extends": "@integrix/tsconfig/node.json",
+  "compilerOptions": {
+    "declaration": true,
+    "sourceMap": false
+  }
+}
