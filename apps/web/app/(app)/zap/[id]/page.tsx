@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,8 @@ import { CodeBlock } from '@/components/ui/code-block';
 import { CopyButton } from '@/components/ui/copy-button';
 import { ArrowLeftIcon } from '@/components/ui/icons';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs } from '@/components/ui/tabs';
+import { RunHistory } from '@/components/zap/run-history';
 import { StepDetailsDialog } from '@/components/zap/step-details-dialog';
 import { StepConnector, StepNode } from '@/components/zap/step-node';
 import { samplePayload, webhookCurl } from '@/components/zap/sample-payload';
@@ -61,6 +63,8 @@ function ZapDetails({
   onDeleted: () => void;
 }) {
   const [viewing, setViewing] = useState<{ action: ZapAction; index: number }>();
+  // The tab lives in the URL so the run-failure email can link straight to History.
+  const showHistory = useSearchParams().get('tab') === 'history';
   const url = webhookUrl(zap.userId, zap.id);
   const actions = zap.actions.toSorted((a, b) => a.sortingOrder - b.sortingOrder);
   // Example body built from the placeholders this zap's steps actually read.
@@ -84,45 +88,59 @@ function ZapDetails({
         <ZapActions zap={zap} onRenamed={onRenamed} onDeleted={onDeleted} />
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Webhook URL</CardTitle>
-          <CardDescription>
-            POST a JSON body here to start a run. The example sends every field your steps use;
-            replace each <code className="font-mono">&lt;value&gt;</code> with real data.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-3 py-2 font-mono text-sm">
-              {url}
-            </code>
-            <CopyButton value={url} />
-          </div>
-          <CodeBlock code={curl} />
-        </CardContent>
-      </Card>
+      <Tabs
+        label="Zap sections"
+        tabs={[
+          { label: 'Overview', href: `/zap/${zap.id}`, active: !showHistory },
+          { label: 'History', href: `/zap/${zap.id}?tab=history`, active: showHistory },
+        ]}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Flow</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center">
-          <StepNode label="Trigger" index={1} integration={zap.trigger?.type} />
-          {actions.map((a, i) => (
-            <div key={a.id} className="flex w-full flex-col items-center">
-              <StepConnector />
-              <StepNode
-                label="Action"
-                index={i + 2}
-                integration={a.type}
-                detail={a.metadata ? Object.values(a.metadata).join(' · ') : undefined}
-                onClick={() => setViewing({ action: a, index: i + 2 })}
-              />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {showHistory ? (
+        <RunHistory zapId={zap.id} integrations={actions.map((a) => a.type)} />
+      ) : (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Webhook URL</CardTitle>
+              <CardDescription>
+                POST a JSON body here to start a run. The example sends every field your steps use;
+                replace each <code className="font-mono">&lt;value&gt;</code> with real data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-3 py-2 font-mono text-sm">
+                  {url}
+                </code>
+                <CopyButton value={url} />
+              </div>
+              <CodeBlock code={curl} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Flow</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center">
+              <StepNode label="Trigger" index={1} integration={zap.trigger?.type} />
+              {actions.map((a, i) => (
+                <div key={a.id} className="flex w-full flex-col items-center">
+                  <StepConnector />
+                  <StepNode
+                    label="Action"
+                    index={i + 2}
+                    integration={a.type}
+                    detail={a.metadata ? Object.values(a.metadata).join(' · ') : undefined}
+                    onClick={() => setViewing({ action: a, index: i + 2 })}
+                  />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {viewing && (
         <StepDetailsDialog

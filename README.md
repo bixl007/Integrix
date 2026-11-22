@@ -22,8 +22,8 @@ flowchart LR
 How a run flows:
 
 1. A POST to a zap's URL reaches `hooks`, which writes a `ZapRun` and a `ZapRunOutbox` row in one transaction, so an accepted event is never lost.
-2. `processor` publishes outbox rows to the Kafka topic `zap-events` as stage 0.
-3. `worker` runs that stage's action, with `{placeholders}` filled from the webhook body, publishes stage + 1 and only then commits. Each step retries on its own, and delivery is at-least-once.
+2. `processor` publishes due outbox rows to the Kafka topic `zap-events` (stage 0 for a new run).
+3. `worker` runs that stage's action, with `{placeholders}` filled from the webhook body, records the step on the run, publishes stage + 1 and only then commits. Each step retries on its own, and delivery is at-least-once. Each zap's History tab shows its runs, and a failed run emails the zap's owner.
 
 [ARCHITECTURE.md](ARCHITECTURE.md) covers the full design: the data model, the run lifecycle, failure modes, the connector model and the plan for user-configurable connectors.
 
@@ -109,15 +109,15 @@ A Husky pre-commit hook runs ESLint and Prettier on staged files, and CI runs `c
 
 All apps read the root `.env`. See [`.env.example`](.env.example) for the full list.
 
-| Variable                                       | Used by           | Notes                                                         |
-| ---------------------------------------------- | ----------------- | ------------------------------------------------------------- |
-| `DATABASE_URL`                                 | all services      | Compose overrides it with its internal host                   |
-| `KAFKA_BROKER`                                 | processor, worker | `localhost:9092` locally                                      |
-| `WEB_URL`, `API_PUBLIC_URL`                    | api               | CORS origin, OAuth callback base, `Secure` cookies when https |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`     | api               | Optional Google sign-in                                       |
-| `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_HOOKS_URL` | web               | Inlined at build time                                         |
-| `SOL_PRIVATE_KEY`                              | worker            | Base58 secret key of a funded devnet wallet                   |
-| `SMTP_*`, `FROM_EMAIL`                         | api, worker       | For Gmail, use an App Password                                |
+| Variable                                       | Used by           | Notes                                                                                                                               |
+| ---------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                 | all services      | Compose overrides it with its internal host                                                                                         |
+| `KAFKA_BROKER`                                 | processor, worker | `localhost:9092` locally                                                                                                            |
+| `WEB_URL`, `API_PUBLIC_URL`                    | api, worker       | CORS origin, OAuth callback base, `Secure` cookies when https. The worker uses `WEB_URL` for the history link in run-failure emails |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`     | api               | Optional Google sign-in                                                                                                             |
+| `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_HOOKS_URL` | web               | Inlined at build time                                                                                                               |
+| `SOL_PRIVATE_KEY`                              | worker            | Base58 secret key of a funded devnet wallet                                                                                         |
+| `SMTP_*`, `FROM_EMAIL`                         | api, worker       | For Gmail, use an App Password                                                                                                      |
 
 ## Resource footprint
 

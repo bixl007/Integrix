@@ -10,6 +10,8 @@ export interface Mail {
   html?: string;
 }
 
+const SMTP_TIMEOUT_MS = 10_000;
+
 let transport: nodemailer.Transporter | undefined;
 
 export const isMailerConfigured = () => {
@@ -27,6 +29,10 @@ function getTransport() {
     port: Number(SMTP_PORT),
     secure: Number(SMTP_PORT) === 465,
     auth: { user: SMTP_USERNAME, pass: SMTP_PASSWORD },
+    // Nodemailer's defaults wait minutes; a stuck SMTP server must not hold up the worker's queue.
+    connectionTimeout: SMTP_TIMEOUT_MS,
+    greetingTimeout: SMTP_TIMEOUT_MS,
+    socketTimeout: SMTP_TIMEOUT_MS,
   });
   return transport;
 }
