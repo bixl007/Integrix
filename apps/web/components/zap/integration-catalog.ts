@@ -12,6 +12,16 @@ export const integrationCatalog: Record<string, IntegrationInfo> = {
     kind: 'trigger',
     description: 'Start a run whenever your zap URL receives a POST with a JSON body.',
   },
+  schedule: {
+    name: 'Schedule',
+    kind: 'trigger',
+    description: 'Start a run every hour or every day, with no request needed.',
+  },
+  delay: {
+    name: 'Delay',
+    kind: 'action',
+    description: 'Pause the run for minutes, hours or days before the next step.',
+  },
   filter: {
     name: 'Filter',
     kind: 'action',

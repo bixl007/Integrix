@@ -5,10 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CodeBlock } from '@/components/ui/code-block';
-import { ChevronDownIcon } from '@/components/ui/icons';
+import { ChevronDownIcon, RotateIcon } from '@/components/ui/icons';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useState } from 'react';
 import { useApi } from '@/hooks/use-api';
+import { api } from '@/lib/api';
 import type { Integration, ZapRun, ZapRunStep } from '@/lib/types';
+import { integrationCatalog } from './integration-catalog';
 import { IntegrationIcon } from './integration-icon';
 import { formatDuration, statusInfo } from './run-format';
 
@@ -53,6 +56,45 @@ function StepRow({ step, integration }: { step: ZapRunStep; integration?: Integr
   );
 }
 
+/** Queues a failed run again from its failed step; `onDone` runs once the server accepts. */
+function ReplayButton({
+  zapId,
+  runId,
+  onDone,
+}: {
+  zapId: string;
+  runId: string;
+  onDone: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string>();
+
+  async function replay() {
+    setPending(true);
+    setError(undefined);
+    try {
+      await api(`/zap/${zapId}/runs/${runId}/replay`, { method: 'POST' });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not replay the run');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-t border-border px-3 py-3">
+      <Button variant="secondary" size="sm" onClick={replay} loading={pending}>
+        <RotateIcon /> Replay from failed step
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Uses the zap&apos;s current steps. Steps that already passed are not run again.
+      </p>
+      {error && <Alert className="w-full">{error}</Alert>}
+    </div>
+  );
+}
+
 /** Latest runs of a zap with each step's result; `integrations` are the zap's connectors, for names and icons. */
 export function RunHistory({
   zapId,
@@ -63,6 +105,11 @@ export function RunHistory({
 }) {
   const { data, error, loading, reload } = useApi<{ runs: ZapRun[] }>(`/zap/${zapId}/runs`);
   const byId = new Map(integrations.map((i) => [i.id, i]));
+  // A step whose connector was since edited out of the zap still gets its built-in name and icon.
+  const integrationFor = (id: string): Integration | undefined => {
+    const known = integrationCatalog[id];
+    return byId.get(id) ?? (known && { id, name: known.name, image: '' });
+  };
 
   return (
     <Card>
@@ -113,10 +160,13 @@ export function RunHistory({
                         <StepRow
                           key={step.stage}
                           step={step}
-                          integration={byId.get(step.actionId)}
+                          integration={integrationFor(step.actionId)}
                         />
                       ))}
                     </ol>
+                  )}
+                  {run.status === 'failed' && (
+                    <ReplayButton zapId={zapId} runId={run.id} onDone={reload} />
                   )}
                 </details>
               </li>

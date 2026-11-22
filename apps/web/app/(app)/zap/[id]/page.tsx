@@ -5,21 +5,18 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CodeBlock } from '@/components/ui/code-block';
-import { CopyButton } from '@/components/ui/copy-button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeftIcon } from '@/components/ui/icons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs } from '@/components/ui/tabs';
 import { RunHistory } from '@/components/zap/run-history';
 import { StepDetailsDialog } from '@/components/zap/step-details-dialog';
 import { StepConnector, StepNode } from '@/components/zap/step-node';
-import { samplePayload, webhookCurl } from '@/components/zap/sample-payload';
+import { triggerPanels } from '@/components/zap/trigger-panels';
 import { ZapActions } from '@/components/zap/zap-actions';
 import { ZapToggle } from '@/components/zap/zap-toggle';
 import { zapTitle } from '@/components/zap/zap-title';
 import { useApi } from '@/hooks/use-api';
-import { webhookUrl } from '@/lib/config';
 import type { Zap, ZapAction } from '@/lib/types';
 
 export default function ZapDetailsPage() {
@@ -66,13 +63,8 @@ function ZapDetails({
   const [viewing, setViewing] = useState<{ action: ZapAction; index: number }>();
   // The tab lives in the URL so the run-failure email can link straight to History.
   const showHistory = useSearchParams().get('tab') === 'history';
-  const url = webhookUrl(zap.userId, zap.id);
   const actions = zap.actions.toSorted((a, b) => a.sortingOrder - b.sortingOrder);
-  // Example body built from the placeholders this zap's steps actually read.
-  const curl = webhookCurl(
-    url,
-    samplePayload(actions.flatMap((a) => Object.values(a.metadata ?? {}))),
-  );
+  const TriggerPanel = triggerPanels[zap.trigger?.type.id ?? ''];
 
   return (
     <div className="flex flex-col gap-6">
@@ -106,31 +98,19 @@ function ZapDetails({
         <RunHistory zapId={zap.id} integrations={actions.map((a) => a.type)} />
       ) : (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Webhook URL</CardTitle>
-              <CardDescription>
-                POST a JSON body here to start a run. The example sends every field your steps use;
-                replace each <code className="font-mono">&lt;value&gt;</code> with real data.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 truncate rounded-md bg-muted px-3 py-2 font-mono text-sm">
-                  {url}
-                </code>
-                <CopyButton value={url} />
-              </div>
-              <CodeBlock code={curl} />
-            </CardContent>
-          </Card>
+          {TriggerPanel && <TriggerPanel zap={zap} />}
 
           <Card>
             <CardHeader>
               <CardTitle>Flow</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center">
-              <StepNode label="Trigger" index={1} integration={zap.trigger?.type} />
+              <StepNode
+                label="Trigger"
+                index={1}
+                integration={zap.trigger?.type}
+                detail={Object.values(zap.trigger?.metadata ?? {}).join(' · ') || undefined}
+              />
               {actions.map((a, i) => (
                 <div key={a.id} className="flex w-full flex-col items-center">
                   <StepConnector />

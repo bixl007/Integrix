@@ -63,7 +63,7 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
     heartbeat,
   );
   const finishedAt = new Date();
-  const status = runStatusAfter(result.status, stage >= actions.length - 1);
+  const status = runStatusAfter(result.status, stage >= actions.length - 1, result.delayMs);
 
   const step = {
     actionId: action.actionId,
@@ -81,8 +81,22 @@ async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => P
     }),
     prismaClient.zapRun.update({
       where: { id: zapRunId },
-      data: { status, finishedAt: status === 'running' ? null : finishedAt },
+      data: {
+        status,
+        finishedAt: status === 'running' || status === 'waiting' ? null : finishedAt,
+      },
     }),
+    // A delayed run parks its next stage in the outbox; the processor publishes it once due.
+    ...(status === 'waiting'
+      ? [
+          prismaClient.zapRunOutbox.create({
+            data: {
+              ...next,
+              availableAt: new Date(finishedAt.getTime() + (result.delayMs ?? 0)),
+            },
+          }),
+        ]
+      : []),
   ]);
 
   // Each stage is a separate message, so a step retries alone; later steps never run after a failure.

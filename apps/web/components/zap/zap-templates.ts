@@ -106,6 +106,33 @@ export const zapTemplates: ZapTemplate[] = [
     samplePayload: { order: { id: 'A-2001', total: 250 }, customer: { name: 'Grace Hopper' } },
   },
   {
+    id: 'delayed-follow-up',
+    name: 'Welcome now, follow up a day later',
+    summary:
+      'Greets a new user straight away, waits a day without holding anything up, then checks in.',
+    triggerId: 'webhook',
+    actions: [
+      {
+        actionId: 'email',
+        metadata: {
+          email: '{email}',
+          subject: 'Welcome, {name}',
+          body: 'Hi {name},\n\nThanks for signing up. Your account is ready.',
+        },
+      },
+      { actionId: 'delay', metadata: { amount: '1', unit: 'days' } },
+      {
+        actionId: 'email',
+        metadata: {
+          email: '{email}',
+          subject: 'How is it going, {name}?',
+          body: 'Hi {name},\n\nYou joined yesterday. Reply to this email if you need a hand getting started.',
+        },
+      },
+    ],
+    samplePayload: { name: 'Ada Lovelace', email: 'ada@example.com' },
+  },
+  {
     id: 'sol-payout-receipt',
     name: 'SOL payout with receipt',
     summary: 'Send devnet SOL to a wallet from the payload, then email the recipient a receipt.',

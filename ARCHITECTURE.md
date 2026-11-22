@@ -4,7 +4,7 @@ This document explains how Integrix works end to end: the services, the data mod
 
 ## 1. What Integrix does
 
-A user builds a **zap**: one trigger (today, a webhook) followed by an ordered list of **actions** (Email, Filter, Solana). Every JSON `POST` to the zap's URL creates a **run**. The run's actions execute in order in the background, and `{placeholders}` in each action's settings are filled from the request body.
+A user builds a **zap**: one trigger (a webhook or a schedule) followed by an ordered list of **actions** (Email, Filter, Delay, Solana). Every JSON `POST` to the zap's URL creates a **run**. The run's actions execute in order in the background, and `{placeholders}` in each action's settings are filled from the request body.
 
 ## 2. System overview
 
@@ -34,7 +34,7 @@ flowchart LR
 | `apps/web`          | UI: marketing site, docs, auth screens, zap builder and dashboard                     | api (browser `fetch`)      | none (cookie in browser)      |
 | `apps/api`          | Auth (email OTP, Google OAuth, cookie sessions), profile, zap CRUD, connector catalog | Postgres, SMTP             | stateless                     |
 | `apps/hooks`        | Public webhook intake; records a run and its outbox row atomically                    | Postgres                   | stateless                     |
-| `apps/processor`    | Moves due outbox rows into Kafka (stage 0 for a new run)                              | Postgres, Kafka            | stateless (outbox is the log) |
+| `apps/processor`    | Moves due outbox rows into Kafka and starts runs for scheduled zaps that are due      | Postgres, Kafka            | stateless (outbox is the log) |
 | `apps/worker`       | Runs one action per message, records the step, queues the next stage, commits         | Postgres, Kafka, SMTP, RPC | Kafka consumer group offsets  |
 | `packages/database` | Prisma schema, migrations, seed, shared client                                        | —                          | —                             |
 | `packages/mailer`   | One SMTP transport shared by the API (OTP) and the worker (Email action, run alerts)  | SMTP                       | —                             |
@@ -57,8 +57,8 @@ erDiagram
   ZapRun ||--o{ ZapRunStep : "records"
 ```
 
-- **Catalog tables**: `AvailableTrigger` and `AvailableAction` list the connector types. Their string ids (`webhook`, `email`, `filter`, `solana`) are the contract that every registry keys on. `seed.ts` upserts them idempotently.
-- **Zap definition**: `Zap` (with an optional custom `name` and an `enabled` flag), `Trigger` and `Action`. Editing a zap replaces its `Action` rows in one transaction. Deleting a zap cascades in the database to its trigger, actions, runs and pending outbox rows. A queued stage for a deleted zap finds no run, so the worker logs it and skips it. `Action.sortingOrder` (0-based) is the stage number, and `Action.metadata` is a flat map of template strings such as `{ "email": "{email}" }`.
+- **Catalog tables**: `AvailableTrigger` and `AvailableAction` list the connector types. Their string ids (`webhook`, `schedule`, `email`, `filter`, `delay`, `solana`) are the contract that every registry keys on. `seed.ts` upserts them idempotently.
+- **Zap definition**: `Zap` (with an optional custom `name`, an `enabled` flag and `nextRunAt` for scheduled zaps), `Trigger` (with its own flat `metadata`, such as `{ "interval": "hourly" }`) and `Action`. Editing a zap replaces its `Action` rows in one transaction. Deleting a zap cascades in the database to its trigger, actions, runs and pending outbox rows. A queued stage for a deleted zap finds no run, so the worker logs it and skips it. `Action.sortingOrder` (0-based) is the stage number, and `Action.metadata` is a flat map of template strings such as `{ "email": "{email}" }`.
 - **Execution**: `ZapRun.metadata` holds the raw webhook body, `ZapRun.actions` is a copy of the zap's steps taken when the run started (connector id, name and settings per step), and `status` (`queued`, `running`, `success`, `failed`, `halted`) with `createdAt` and `finishedAt` track its progress. Runs from before run history are `unknown`. `ZapRunStep` holds one row per stage (unique on run and stage): the connector id, `status` (`success`, `failed`, `halted`, `skipped`), `error`, `output` and timings. A `ZapRunOutbox` row is a stage waiting to be published: it carries its `stage` and an `availableAt` time, and exists only until the processor publishes it.
 - **Auth**: `Session` and `OtpCode` store SHA-256 hashes only, never raw tokens or codes.
 
@@ -93,9 +93,9 @@ sequenceDiagram
   W->>K: commit offset
 ```
 
-1. **Intake** (`hooks`): it loads the zap, answering 404 for an unknown id and 403 for a zap that is turned off. The body (100 KB max) becomes `ZapRun.metadata`, and the zap's steps are copied to `ZapRun.actions`, so editing the zap later never changes a run in progress. The run and outbox rows are written in one transaction, so an accepted request can't be lost and a failed write leaves nothing behind. The handler makes no external calls, which keeps it fast.
-2. **Publish** (`processor`): it ensures the topic exists (1 partition, RF 1), then drains the outbox in batches, taking only rows whose `availableAt` has passed and publishing each at its own `stage`. Hooks writes stage 0 rows that are due at once; a later stage with a future `availableAt` is how a run can wait without the worker sleeping. When the outbox is empty, polling backs off exponentially to 5 s; after a full batch it polls again immediately.
-3. **Execute** (`worker`, consumer group `main-worker`, manual commits): it takes the step at index `stage` from the run's copied steps (runs from before the copy existed fall back to the zap's current actions) and resolves its handler from the registry. The worker fills the templates from the payload and awaits the handler, which may return `{ output?, halt? }`. It then writes the step's result and the run's new status in one transaction, publishes `stage + 1` straight to Kafka if the step passed and more actions remain, and only after that commits the offset. A step that returns `halt` ends the run as `halted` without an error; the Filter action does this when its condition fails.
+1. **Intake** (`hooks`): it loads the zap, answering 404 for an unknown id or a zap whose trigger isn't a webhook, and 403 for a zap that is turned off. The body (100 KB max) becomes `ZapRun.metadata`, and the zap's steps are copied to `ZapRun.actions`, so editing the zap later never changes a run in progress. The run and outbox rows are written in one transaction, so an accepted request can't be lost and a failed write leaves nothing behind. The handler makes no external calls, which keeps it fast.
+2. **Publish** (`processor`): it ensures the topic exists (1 partition, RF 1), then drains the outbox in batches, taking only rows whose `availableAt` has passed and publishing each at its own `stage`. Hooks writes stage 0 rows that are due at once. A Delay step makes the worker write the next stage with a future `availableAt` (the run shows as `waiting`), so a run can wait for days without the worker sleeping, and replaying a failed run writes a row for its failed stage after refreshing the run's step copy from the zap's current steps. Every 30 seconds the same loop also looks for enabled zaps whose `nextRunAt` has passed: in one transaction it moves `nextRunAt` to the next firing and writes a run plus its stage 0 outbox row. Firings missed while the processor was down are skipped, not run in a burst. When the outbox is empty, polling backs off exponentially to 5 s; after a full batch it polls again immediately.
+3. **Execute** (`worker`, consumer group `main-worker`, manual commits): it takes the step at index `stage` from the run's copied steps (runs from before the copy existed fall back to the zap's current actions) and resolves its handler from the registry. The worker fills the templates from the payload and awaits the handler, which may return `{ output?, halt? }`. It then writes the step's result and the run's new status in one transaction, publishes `stage + 1` straight to Kafka if the step passed and more actions remain, and only after that commits the offset. A step that returns `delayMs` makes the worker park the next stage in the outbox instead of publishing it. A step that returns `halt` ends the run as `halted` without an error; the Filter action does this when its condition fails.
 
 Each stage is its own Kafka message, so a failing step is retried alone and earlier steps aren't repeated. Database or Kafka errors (as opposed to a failing action) still throw, and Kafka redelivers the message once the outage clears.
 
@@ -110,9 +110,10 @@ Each stage is its own Kafka message, so a failing step is retried alone and earl
 | Unknown action id (no handler registered)       | The worker logs a warning, records the step as `skipped` and continues to the next stage.                                                                                                                                                          |
 | Failure email can't be sent                     | It's logged and dropped. The run is already marked `failed`, and the stage isn't redelivered.                                                                                                                                                      |
 | Zap edited or turned off while a run is going   | The run finishes with the steps copied onto it at intake. Turning a zap off only stops new runs.                                                                                                                                                   |
+| Scheduled run due while the processor is down   | One run starts when the processor is back, and firings missed in between are skipped.                                                                                                                                                              |
 | Kafka unavailable                               | Runs accumulate safely in the outbox until the processor can publish.                                                                                                                                                                              |
 
-Known gaps (candidates for future work): a failed run can't be replayed yet; runs and their steps are never pruned; and `userId` in the webhook URL isn't checked against the zap's owner.
+Known gaps (candidates for future work): replaying is manual (there is no automatic dead-letter retry); schedules are plain hourly or daily intervals with no time-of-day or time zone; runs and their steps are never pruned; and `userId` in the webhook URL isn't checked against the zap's owner.
 
 ## 6. Templating
 
@@ -127,7 +128,7 @@ A connector is identified by one string id. Each layer keeps its own small regis
 | Layer  | Registry                                         | Holds                                                      |
 | ------ | ------------------------------------------------ | ---------------------------------------------------------- |
 | DB     | `packages/database/seed.ts`                      | Catalog row (id, name, image)                              |
-| Worker | `apps/worker/src/actions/index.ts`               | `ActionHandler(metadata, payload)` → `{ output?, halt? }`  |
+| Worker | `apps/worker/src/actions/index.ts`               | `ActionHandler` → `{ output?, halt?, delayMs? }`           |
 | Web    | `apps/web/components/zap/action-fields.ts`       | Builder form fields per action                             |
 | Web    | `apps/web/components/zap/integration-catalog.ts` | Display name, kind and description                         |
 | Web    | `apps/web/components/zap/integration-icon.tsx`   | Monochrome icon for built-ins                              |
