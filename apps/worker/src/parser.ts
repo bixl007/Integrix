@@ -19,10 +19,11 @@ function resolve(values: JsonValue, path: string): JsonValue | undefined {
   return current;
 }
 
-/** Replaces `{path}` placeholders with payload values; unknown paths are left as-is. */
-export function parse(text: string, values: JsonValue): string {
+/** Replaces `{path}` placeholders with payload values; unknown paths are left as-is, or become `missing` (as does null) when it is given. */
+export function parse(text: string, values: JsonValue, missing?: string): string {
   return text.replace(PLACEHOLDER, (match, path: string) => {
     const value = resolve(values, path.trim());
+    if (missing !== undefined && value == null) return missing;
     if (value === undefined) return match;
     return typeof value === 'object' ? JSON.stringify(value) : String(value);
   });

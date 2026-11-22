@@ -84,6 +84,28 @@ export const zapTemplates: ZapTemplate[] = [
     },
   },
   {
+    id: 'big-order-alert',
+    name: 'Alert me about big orders only',
+    summary:
+      'A filter step ends the run for small orders, so you are only emailed when the total is above 100.',
+    triggerId: 'webhook',
+    actions: [
+      {
+        actionId: 'filter',
+        metadata: { field: '{order.total}', operator: 'greater_than', value: '100' },
+      },
+      {
+        actionId: 'email',
+        metadata: {
+          email: OWNER_EMAIL,
+          subject: 'Big order {order.id}: {order.total}',
+          body: '{customer.name} just placed order {order.id} for {order.total}.',
+        },
+      },
+    ],
+    samplePayload: { order: { id: 'A-2001', total: 250 }, customer: { name: 'Grace Hopper' } },
+  },
+  {
     id: 'sol-payout-receipt',
     name: 'SOL payout with receipt',
     summary: 'Send devnet SOL to a wallet from the payload, then email the recipient a receipt.',

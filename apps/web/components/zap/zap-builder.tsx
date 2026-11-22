@@ -10,6 +10,7 @@ import { useApi } from '@/hooks/use-api';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import type { Integration, Zap } from '@/lib/types';
+import { fieldSuggestions, type ZapSample } from './field-paths';
 import { StepConnector, StepNode } from './step-node';
 import { StepPicker, type PickedStep } from './step-picker';
 import { templateSteps, type ZapTemplate } from './zap-templates';
@@ -23,6 +24,8 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
   const session = useSession();
   const triggers = useApi<{ availableTriggers: Integration[] }>('/trigger/available');
   const actions = useApi<{ availableActions: Integration[] }>('/action/available');
+  // Only a saved zap has requests to suggest fields from.
+  const sample = useApi<{ sample: ZapSample | null }>(zap ? `/zap/${zap.id}/sample` : null);
 
   const [name, setName] = useState(zap?.name ?? template?.name ?? '');
   const [trigger, setTrigger] = useState<PickedStep | undefined>(
@@ -173,6 +176,9 @@ export function ZapBuilder({ template, zap }: { template?: ZapTemplate; zap?: Za
               : (actions.data?.availableActions ?? [])
           }
           initial={editing === 'trigger' ? trigger : steps[editing]}
+          suggestions={
+            editing === 'trigger' ? undefined : fieldSuggestions(sample.data?.sample, editing)
+          }
           onPick={onPick}
           onClose={() => setEditing(null)}
         />

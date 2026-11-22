@@ -6,7 +6,7 @@ export interface ActionResult {
   halt?: boolean;
 }
 
-/** Runs one action step; `metadata` holds templates, `payload` is the webhook body. Throw to fail the step. */
+/** Runs one action step; `metadata` holds templates, `payload` is the request body plus earlier step outputs under `steps`. Throw to fail the step. */
 export type ActionHandler = (
   metadata: JsonObject,
   payload: JsonValue,

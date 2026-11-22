@@ -50,7 +50,7 @@ const concepts: { term: string; body: string }[] = [
   { term: 'Action', body: 'A step that does something, such as sending an email or SOL.' },
   {
     term: 'Connector',
-    body: 'A trigger or action type you can pick in the builder (Webhook, Email, Solana).',
+    body: 'A trigger or action type you can pick in the builder (Webhook, Email, Filter, Solana).',
   },
   {
     term: 'Run',
@@ -257,6 +257,19 @@ export default function DocsPage() {
               </tr>
             ))}
           </Table>
+          <p>
+            A step can also read what an earlier step produced, with{' '}
+            <Code>{'{steps.N.field}'}</Code>. Steps are numbered as in the builder: the trigger is
+            step 1 and the first action is step 2. For example, after a Solana step at position 2,{' '}
+            <Code>{'{steps.2.signature}'}</Code> is that transfer&apos;s signature. Email produces{' '}
+            <Code>to</Code> and <Code>subject</Code>, and Filter produces <Code>passed</Code>. A
+            run&apos;s History shows each step&apos;s output.
+          </p>
+          <p>
+            When you edit a zap that has already received a request, the step dialog lists the
+            fields of the latest request and the outputs of earlier steps. Click one to insert it
+            into the field you last edited.
+          </p>
         </Section>
 
         <Section id="connectors" title="Connectors">
@@ -296,6 +309,15 @@ export default function DocsPage() {
             })}
           </div>
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
+            <li>
+              Filter compares <Code>field</Code> with <Code>value</Code> (both templates). The{' '}
+              <Code>operator</Code> is one of <Code>equals</Code>, <Code>not_equals</Code>,{' '}
+              <Code>contains</Code>, <Code>not_contains</Code>, <Code>greater_than</Code>,{' '}
+              <Code>less_than</Code>, <Code>is_empty</Code> or <Code>is_not_empty</Code>. Text
+              comparisons are case-sensitive, the two numeric ones compare numbers, and a field
+              missing from the request counts as empty. When the condition fails, the run ends as
+              Halted: later steps don&apos;t run and no failure email is sent.
+            </li>
             <li>
               Email is sent through the server&apos;s SMTP account as plain text plus a simple HTML
               version. In the body, a blank line starts a new paragraph and a single newline is a

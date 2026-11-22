@@ -7,13 +7,13 @@ resource: ../
 
 # Connectors (triggers and actions)
 
-A connector is one string id (`webhook`, `email`, `solana`) shared by every layer. Extend the registries below and never branch on the id. See [ARCHITECTURE.md](../ARCHITECTURE.md#7-connector-model) for the design.
+A connector is one string id (`webhook`, `email`, `filter`, `solana`) shared by every layer. Extend the registries below and never branch on the id. See [ARCHITECTURE.md](../ARCHITECTURE.md#7-connector-model) for the design.
 
 ## Add an action
 
 1. `packages/database/seed.ts`: add `{ id, name, image }` to `actions`. The seed upserts, so existing databases pick it up on the next `bun run dev` or Compose start.
-2. `apps/worker/src/actions/<id>.ts`: export an `ActionHandler`. Read settings from `metadata`, pass every user value through `parse(value, payload)`, and throw on failure so the worker retries the stage and then marks the run failed. Optionally return `{ output }` (a JSON object stored on the run's step and shown in History) or `{ halt: true }` to end the run without an error. Keep it idempotent where possible and keep secrets out of logs. Register it in `actions/index.ts`.
-3. `apps/web/components/zap/action-fields.ts`: add the form fields. Each `key` is the metadata key the handler reads.
+2. `apps/worker/src/actions/<id>.ts`: export an `ActionHandler`. Read settings from `metadata`, pass every user value through `parse(value, payload)` (`payload` is the request body plus earlier step outputs under `steps`, so `{steps.N.field}` works in every field), and throw on failure so the worker retries the stage and then marks the run failed. Optionally return `{ output }` (a JSON object stored on the run's step and shown in History) or `{ halt: true }` to end the run without an error. Keep it idempotent where possible and keep secrets out of logs. Register it in `actions/index.ts`.
+3. `apps/web/components/zap/action-fields.ts`: add the form fields. Each `key` is the metadata key the handler reads. A field with `options` renders a select (its `value`s are what the handler receives), and `optional` lets it be left empty.
 4. `apps/web/components/zap/integration-catalog.ts`: add `{ name, kind: 'action', description }`. For a built-in icon, add an SVG to `components/ui/icons.tsx` and map it in `integration-icon.tsx`.
 5. Optional: add a sample to `zap-templates.ts`. It appears on `/docs` and opens prefilled in the builder through `/zap/create?template=<id>`.
 6. Docs: the `/docs` connector reference renders from steps 3 and 4. Add any server env vars to `.env.example` and the README table, and note behavior worth knowing (limits, costs, side effects) in the docs page connector notes.
