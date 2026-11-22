@@ -27,7 +27,15 @@ export const ResendOtpSchema = z.object({ username: email });
 // Action metadata is a flat map of template strings, e.g. { email: '{email}' }.
 const MetadataSchema = z.record(z.string());
 
+// An empty name means "no custom title", so the zap shows its step names.
+const zapName = z
+  .string()
+  .trim()
+  .max(80)
+  .transform((n) => n || null);
+
 export const ZapCreateSchema = z.object({
+  name: zapName.optional(),
   availableTriggerId: z.string(),
   triggerMetadata: MetadataSchema.optional(),
   actions: z.array(
@@ -37,6 +45,8 @@ export const ZapCreateSchema = z.object({
     }),
   ),
 });
+
+export const ZapRenameSchema = z.object({ name: zapName });
 
 export const UpdateProfileSchema = z.object({ name: z.string().trim().min(1).max(80) });
 

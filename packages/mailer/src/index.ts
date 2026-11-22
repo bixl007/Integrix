@@ -1,4 +1,7 @@
 import nodemailer from 'nodemailer';
+import { formatSubject, textToHtml } from './format';
+
+export { formatSubject, textToHtml };
 
 export interface Mail {
   to: string;
@@ -28,11 +31,16 @@ function getTransport() {
   return transport;
 }
 
-/** Sends via SMTP; outside production with no SMTP config it logs the mail instead. */
-export async function sendMail(mail: Mail) {
+/** Sends text plus an HTML version (built from the text unless given); logs instead outside production without SMTP. */
+export async function sendMail(input: Mail) {
+  const mail = { ...input, subject: formatSubject(input.subject) };
   if (!isMailerConfigured() && process.env.NODE_ENV !== 'production') {
     console.log(`[mailer:dev] to=${mail.to} subject="${mail.subject}"\n${mail.text}`);
     return;
   }
-  await getTransport().sendMail({ from: process.env.FROM_EMAIL, ...mail });
+  await getTransport().sendMail({
+    from: process.env.FROM_EMAIL,
+    ...mail,
+    html: mail.html ?? textToHtml(mail.text),
+  });
 }

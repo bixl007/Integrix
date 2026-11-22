@@ -16,7 +16,7 @@ resource: ../apps/api/
 - `src/services/otp.ts` stores SHA-256 hashes of codes bound to the user id. Codes last 10 minutes and allow 5 attempts. `src/services/session.ts` issues a random token in the httpOnly `integrix_session` cookie (7 days, `SameSite=Lax`, `Secure` when `API_PUBLIC_URL` is https) and stores only its hash.
 - `src/routes/auth.ts`: `GET /session` returns `{ user | null }` (always 200), `GET /providers` lists configured OAuth providers, and `GET /oauth/:provider` and its `/callback` run the authorization-code flow with a state cookie for CSRF protection. A verified provider email is linked to an existing user by email and skips the OTP.
 - `src/auth/`: the `OAuthProvider` interface and the Google implementation. Add a provider by implementing the interface and registering it in `index.ts`; it's enabled only when its client ID and secret env vars are set.
-- `src/routes/zap.ts`: `POST /` returns `{ zapId }` and writes the zap, trigger and back-reference inside one `$transaction` using `tx`. `GET /` returns `{ zaps }` (newest first) and `GET /:zapId` returns `{ zap }`. Every query is scoped by `req.userId`.
+- `src/routes/zap.ts`: `POST /` accepts an optional `name` (same rule as rename) and returns `{ zapId }` and writes the zap, trigger and back-reference inside one `$transaction` using `tx`. `GET /` returns `{ zaps }` (newest first) and `GET /:zapId` returns `{ zap }`. `PATCH /:zapId` renames the zap with `{ name }` (trimmed, at most 80 characters; an empty string clears it back to `null`) and returns `{ zap }`. `DELETE /:zapId` returns `{ ok: true }`, and the database cascades the trigger, actions, runs and outbox rows. Both return 404 `{ message }` for a zap the user doesn't own. Every query is scoped by `req.userId` (writes use `updateMany`/`deleteMany` with the owner in `where`).
 - `src/routes/trigger.ts` and `src/routes/action.ts` serve `{ availableTriggers }` and `{ availableActions }`.
 - `src/routes/profile.ts` (all routes require a session):
   - `GET /` returns `{ profile: { name, email, hasPassword } }`. `PATCH /` updates the name.
@@ -24,6 +24,6 @@ resource: ../apps/api/
   - `POST /password` changes the password (or sets one for OAuth-only accounts) and revokes the user's other sessions.
   - OTP codes carry a `purpose`, so an email-change code can never complete a login.
 - `src/middleware/auth.ts` resolves the session cookie and sets `req.userId` (typed in `src/types.d.ts`). CORS allows only `WEB_URL`, with credentials.
-- `src/schemas` holds the zod request schemas. Action metadata is a flat string map.
+- `src/schemas` holds the zod request schemas. Action metadata is a flat string map. `zapName` (trimmed, at most 80 characters, empty becomes `null`) is shared by create and rename.
 - `src/config.ts` holds the public URLs, cookie and OTP settings. OTP emails go through `@integrix/mailer`, which logs them instead of sending when SMTP isn't configured outside production.
 - Verify with `bun run typecheck`. With Postgres up, run `bun run dev`, then `curl localhost:3000/health` and exercise signup, signin and zap creation.

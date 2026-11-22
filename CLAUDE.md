@@ -1,6 +1,6 @@
 # Integrix
 
-Integrix is a webhook-driven workflow automation platform (Zapier-style) in a Bun + Turborepo monorepo. Start with the [review conventions](REVIEW.md), then use the [OKF index](okf/index.md) to choose the guides for the source areas you touch. When a change spans modules, read each relevant guide, and update a guide when its documented contract changes. Record notable doc changes in [okf/log.md](okf/log.md).
+Integrix is a webhook-driven workflow automation platform (Zapier-style) in a Bun + Turborepo monorepo. Read [ARCHITECTURE.md](ARCHITECTURE.md) for how the system works, start with the [review conventions](REVIEW.md), then use the [OKF index](okf/index.md) to choose the guides for the source areas you touch. When a change spans modules, read each relevant guide, and update a guide when its documented contract changes. Record notable doc changes in [okf/log.md](okf/log.md).
 
 The [README](README.md) covers environment setup, scripts, ports and Docker.
 
@@ -14,6 +14,16 @@ The [README](README.md) covers environment setup, scripts, ports and Docker.
 - Add dependencies to the workspace that imports them: `bun add <pkg> --cwd apps/<name>`. Put types and build tools in `devDependencies`.
 - Before finishing a change, run `bun run check` (lint, format check, typecheck, tests) and `bun run build`. The pre-commit hook runs ESLint and Prettier on staged files.
 - Keep secrets in the root `.env` (template: `.env.example`). Never commit `.env` or print secrets in logs or responses.
+
+## Documentation
+
+Docs ship in the same change as the code. When you add or change a feature, update every doc it affects before finishing:
+
+- **OKF module guide** (`okf/<module>.md`): when a module's files, contracts, routes, env vars or verification steps change. Add a guide for a new module and list it in `okf/index.md`. Record each doc change in `okf/log.md`.
+- **In-app docs** (`apps/web/app/(marketing)/docs/page.tsx`): when user-facing behavior, connectors, templating, webhooks or public API endpoints change. Connector copy and samples come from `integration-catalog.ts`, `action-fields.ts` and `zap-templates.ts`, so update those registries.
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: when services, data flow, the data model, delivery guarantees or the connector model change.
+- **[README](README.md)**: when setup, scripts, env vars, ports, the stack or other informational content change.
+- **New connector**: follow [okf/connectors.md](okf/connectors.md), and keep connector data id-keyed and serializable, since connectors will become user-configurable.
 
 ## Engineering principles
 

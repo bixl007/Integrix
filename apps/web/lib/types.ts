@@ -15,6 +15,7 @@ export interface ZapAction {
 
 export interface Zap {
   id: string;
+  name: string | null;
   userId: number;
   createdAt: string;
   actions: ZapAction[];

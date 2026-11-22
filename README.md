@@ -19,6 +19,14 @@ flowchart LR
   Worker --> Actions[Solana · Email]
 ```
 
+How a run flows:
+
+1. A POST to a zap's URL reaches `hooks`, which writes a `ZapRun` and a `ZapRunOutbox` row in one transaction, so an accepted event is never lost.
+2. `processor` publishes outbox rows to the Kafka topic `zap-events` as stage 0.
+3. `worker` runs that stage's action, with `{placeholders}` filled from the webhook body, publishes stage + 1 and only then commits. Each step retries on its own, and delivery is at-least-once.
+
+[ARCHITECTURE.md](ARCHITECTURE.md) covers the full design: the data model, the run lifecycle, failure modes, the connector model and the plan for user-configurable connectors.
+
 | Workspace           | Role                                                               |
 | ------------------- | ------------------------------------------------------------------ |
 | `apps/web`          | Next.js 15 frontend, Vercel-style design system                    |
@@ -27,7 +35,16 @@ flowchart LR
 | `apps/processor`    | Publishes outbox rows to Kafka with idle back-off                  |
 | `apps/worker`       | Executes one action per stage via a handler registry               |
 | `packages/database` | Prisma schema, migrations, seed and shared client                  |
+| `packages/mailer`   | Shared SMTP sender for OTP and Email actions                       |
 | `packages/tsconfig` | Shared TypeScript presets                                          |
+
+## Documentation
+
+| Where                                              | What                                                                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| [`/docs`](http://localhost:3001/docs) (in the app) | User guide: quick start, templating, connector reference, **sample integrations** you can add in one click, webhook and API reference |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                 | How the system works end to end                                                                                                       |
+| [okf/](okf/index.md)                               | Per-module guides for contributors and AI agents, plus the [connectors checklist](okf/connectors.md)                                  |
 
 ## Tech stack
 
@@ -144,11 +161,12 @@ curl -X POST http://localhost:3000/api/v1/zap \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{
+    "name": "SOL payout with receipt",
     "availableTriggerId": "webhook",
     "triggerMetadata": {},
     "actions": [
       { "availableActionId": "solana", "actionMetadata": { "amount": "{amount}", "address": "{address}" } },
-      { "availableActionId": "email",  "actionMetadata": { "email": "{email}", "body": "Hi {name}, you received {amount} SOL" } }
+      { "availableActionId": "email",  "actionMetadata": { "email": "{email}", "subject": "You received {amount} SOL", "body": "Hi {name},\n\nWe sent {amount} SOL to your wallet." } }
     ]
   }'
 
@@ -160,24 +178,26 @@ curl -X POST http://localhost:3002/hooks/catch/1/YOUR_ZAP_ID \
 
 </details>
 
-Action metadata values are templates. `{field}` and `{nested.field}` resolve against the webhook body, and unknown placeholders are left unchanged.
+Action metadata values are templates. `{field}` and `{nested.field}` resolve against the webhook body, and unknown placeholders are left unchanged. Ready-made zaps (welcome email, GitHub star alert, order confirmation, SOL payout with receipt) are on the in-app [docs page](http://localhost:3001/docs#sample-integrations). Each has a one-click **Use template** button and its API body.
 
 ## Project structure
 
 ```text
 .
 ├── apps/
-│   ├── web/                # app/ (route groups), components/ui (design system), lib/, hooks/
+│   ├── web/                # app/ (route groups, (marketing)/docs), components/ui (design system), lib/, hooks/
 │   ├── api/                # src/{routes,middleware,schemas,db}
 │   ├── hooks/
 │   ├── processor/
 │   └── worker/             # src/actions (handler registry), parser
 ├── packages/
 │   ├── database/           # schema.prisma, migrations/, seed.ts, prisma.config.ts
+│   ├── mailer/             # shared SMTP sender
 │   └── tsconfig/
 ├── docker/                 # service.Dockerfile, web.Dockerfile
 ├── okf/                    # module guides for humans and AI agents
 ├── .github/workflows/      # CI
+├── ARCHITECTURE.md         # how the system works
 ├── CLAUDE.md · AGENTS.md · REVIEW.md
 └── docker-compose.yml
 ```
@@ -185,6 +205,8 @@ Action metadata values are templates. `{field}` and `{nested.field}` resolve aga
 ## Contributing (humans and AI agents)
 
 Read [CLAUDE.md](CLAUDE.md) for conventions (SOLID, LLD and short comments), the [OKF index](okf/index.md) for the module you're touching, and [REVIEW.md](REVIEW.md) before opening a PR. Run `bun run check && bun run build` locally.
+
+Docs ship with the code. A feature or behavior change updates the affected `okf/` guide (plus an `okf/log.md` entry), the `/docs` page if users see it, `ARCHITECTURE.md` if the architecture changes, and this README if setup or informational content changes. To add a trigger or action, follow [okf/connectors.md](okf/connectors.md).
 
 ## Troubleshooting
 

@@ -5,16 +5,10 @@ import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { integrationCatalog } from '@/components/zap/integration-catalog';
 import { IntegrationIcon } from '@/components/zap/integration-icon';
 import { useApi } from '@/hooks/use-api';
 import type { Integration } from '@/lib/types';
-
-// Copy for built-in integrations, keyed by AvailableTrigger/AvailableAction id.
-const descriptions: Record<string, string> = {
-  webhook: 'Start a run whenever your zap URL receives a POST with a JSON body.',
-  solana: 'Transfer SOL on devnet to an address taken from the payload.',
-  email: 'Send a templated email through your SMTP provider.',
-};
 
 export default function IntegrationsPage() {
   const triggers = useApi<{ availableTriggers: Integration[] }>('/trigger/available');
@@ -58,7 +52,7 @@ export default function IntegrationsPage() {
               <div className="flex-1">
                 <h2 className="font-medium">{item.name}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {descriptions[item.id] ?? 'Available in the zap builder.'}
+                  {integrationCatalog[item.id]?.description ?? 'Available in the zap builder.'}
                 </p>
               </div>
               <Link

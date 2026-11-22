@@ -280,14 +280,9 @@ function CallToAction() {
             <Link href="/signup" className={buttonVariants({ size: 'lg' })}>
               Get started <ArrowRightIcon />
             </Link>
-            <a
-              href={links.docs}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={buttonVariants({ variant: 'ghost', size: 'lg' })}
-            >
+            <Link href={links.docs} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
               Read the docs
-            </a>
+            </Link>
           </div>
         </div>
       </div>

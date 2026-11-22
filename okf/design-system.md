@@ -15,7 +15,7 @@ resource: ../apps/web/components/ui/
   - `button.tsx`: `Button` and `buttonVariants({ variant, size })` for styling links. Variants are primary, secondary, ghost and danger; sizes are sm, md, lg and icon.
   - `input.tsx`: `Input` (with a password reveal) and `Textarea`, both with a label, hint and error wired via `aria-describedby`.
   - `card.tsx`: `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent` and `CardFooter`.
-  - `badge.tsx`, `alert.tsx` (with an error or status role), `skeleton.tsx` and `copy-button.tsx`.
+  - `badge.tsx`, `alert.tsx` (with an error or status role), `skeleton.tsx`, `copy-button.tsx`, and `code-block.tsx` (a `pre` with a corner copy button, used for curl snippets).
   - `dialog.tsx`: a native `<dialog>` with focus trap and Esc to close.
   - `theme-switcher.tsx`: a system/light/dark radio group, shown in the marketing footer and the account menu.
   - `menu.tsx`: a dropdown (`Menu`, `MenuItem`, `MenuLink`, `MenuLabel`, `MenuSeparator`) that closes on outside click, Esc or item select.

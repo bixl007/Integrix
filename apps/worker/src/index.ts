@@ -2,8 +2,11 @@ import type { JsonObject } from '@integrix/database';
 import { PrismaClient } from '@integrix/database';
 import { Kafka } from 'kafkajs';
 import { actionHandlers } from './actions';
+import { retry } from './retry';
 
 const TOPIC_NAME = 'zap-events';
+// A failing step retries in place; if it still fails, its run stops so the queue keeps moving.
+const RETRY_DELAYS_MS = [1_000, 5_000, 10_000];
 const prismaClient = new PrismaClient();
 
 const kafka = new Kafka({
@@ -24,7 +27,7 @@ async function main() {
 
   await consumer.run({
     autoCommit: false,
-    eachMessage: async ({ partition, message }) => {
+    eachMessage: async ({ partition, message, heartbeat }) => {
       const raw = message.value?.toString();
       if (!raw) return;
       const { zapRunId, stage } = JSON.parse(raw) as StageMessage;
@@ -40,14 +43,29 @@ async function main() {
       }
 
       const handler = actionHandlers[action.type.id];
+      let failed = false;
       if (!handler) {
         console.warn(`No handler registered for action "${action.type.id}"`);
       } else {
-        await handler((action.metadata ?? {}) as JsonObject, zapRun.metadata);
+        try {
+          // Heartbeats between attempts keep the consumer in its group during back-off.
+          await retry(
+            () => handler((action.metadata ?? {}) as JsonObject, zapRun.metadata),
+            RETRY_DELAYS_MS,
+            heartbeat,
+          );
+        } catch (e) {
+          failed = true;
+          // shortcut: failures are only logged, record them on the run once runs have a status.
+          console.error(
+            `Run ${zapRunId} stopped at stage ${stage} (${action.type.id}) after ${RETRY_DELAYS_MS.length + 1} attempts:`,
+            e instanceof Error ? e.message : e,
+          );
+        }
       }
 
-      // Each stage is a separate message so a failed step can be retried alone.
-      if (stage < zapRun.zap.actions.length - 1) {
+      // Each stage is a separate message, so a step retries alone; later steps never run after a failure.
+      if (!failed && stage < zapRun.zap.actions.length - 1) {
         await producer.send({
           topic: TOPIC_NAME,
           messages: [

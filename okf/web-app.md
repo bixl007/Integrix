@@ -12,8 +12,11 @@ resource: ../apps/web/app/
   - `(auth)` shows a minimal logo bar with no footer.
   - `(app)` uses `AppShell`, a Zapier-style sidebar with no marketing footer.
 - `(marketing)/page.tsx` is a static server component. Keep it free of client hooks so it ships no page JS.
+- `(marketing)/docs/page.tsx` is the user documentation, also a static server component (copy buttons and the section nav are the only client islands). Its section list comes from the `toc` array, rendered by `components/docs/docs-toc.tsx`, which highlights the current section on scroll (frame-throttled scroll listener, no polling). The connector reference and sample integrations render from `action-fields.ts`, `integration-catalog.ts` and `zap-templates.ts`, so update those registries rather than hard-coding copy. Update this page when user-facing behavior, connectors, templating or the public API change.
 - `(auth)/login` and `(auth)/signup` are server pages that render the shared client `AuthForm`. `(auth)/layout.tsx` centers the card.
 - `(app)/layout.tsx` wraps `dashboard`, `integrations`, `settings`, `zap/create` and `zap/[id]` in `RequireAuth` (redirects to `/login` without a session) and `AppShell`. These pages are client components that fetch through `useApi`.
+- `zap/create` has an optional Name field (prefilled with a template's name) sent as `name` on publish. `zap/[id]` shows a curl whose body lists exactly the fields the zap's steps read, and opens `StepDetailsDialog` when an action step is clicked.
+- `zap/create` reads `?template=<id>` with `useSearchParams()` (the page is prerendered, so the `searchParams` prop would be empty) and renders the builder keyed by that id, so switching templates resets state. The builder prefills once, after both integration lists load. It shows an info alert when the server lacks a connector the template needs.
 - Pages render loading (`Skeleton`), empty, error (`Alert`) and success states. Keep all four when changing a page.
 - `next.config.ts` builds a standalone server, sets security headers and traces from the monorepo root. Lint runs at the repo root, not in `next build`.
 - Verify with `bun run typecheck` and `bun run build`, then check affected routes with `bun run dev` in light and dark themes.

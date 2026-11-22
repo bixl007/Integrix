@@ -11,6 +11,7 @@ const columns: { title: string; items: { label: string; href: string; external?:
       { label: 'Features', href: '/#features' },
       { label: 'Integrations', href: '/#integrations' },
       { label: 'How it works', href: '/#how-it-works' },
+      { label: 'Documentation', href: links.docs },
       { label: 'Dashboard', href: '/dashboard' },
     ],
   },
@@ -18,7 +19,8 @@ const columns: { title: string; items: { label: string; href: string; external?:
     title: 'Developers',
     items: [
       { label: 'Source code', href: links.repo, external: true },
-      { label: 'API reference', href: links.apiReference, external: true },
+      { label: 'API reference', href: links.apiReference },
+      { label: 'Architecture', href: links.architecture, external: true },
       { label: 'Self-hosting', href: links.selfHosting, external: true },
       { label: 'Report an issue', href: links.issues, external: true },
     ],

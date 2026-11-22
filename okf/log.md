@@ -1,5 +1,25 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (worker retries)
+
+- A failing action now retries in place (1 s, 5 s, 10 s) and then stops its run instead of being redelivered forever, so one bad step can no longer block the queue.
+
+## 2026-11-22 (email structure)
+
+- The Email action has a templated Subject field, and the mailer now sends a structured HTML version of every email (paragraphs, escaped payload values) next to the plain text. Sample templates use subjects and multi-paragraph bodies. Their "send to me" fields use `OWNER_EMAIL`, which the builder replaces with the user's email.
+
+## 2026-11-22 (zap names, curl, step details)
+
+- Zaps can be named when created (`name` on `POST /api/v1/zap`, Name field in the builder). The zap page curl is now generated from the zap's placeholders instead of a fixed body, and clicking an action step opens its full settings. Added the `CodeBlock` primitive, and the `/docs` sidebar now highlights the section being read.
+
+## 2026-11-22 (zap rename and delete)
+
+- Added `Zap.name` and cascading zap deletes (migration `zap_name_cascade`), `PATCH`/`DELETE /api/v1/zap/:zapId`, the `ZapActions` menu on the dashboard and zap pages, and `useApi().reload()`.
+
+## 2026-11-22 (docs)
+
+- Added `ARCHITECTURE.md`, the in-app `/docs` page, sample integrations (`zap-templates.ts`, with builder prefill via `?template=`), the shared `integration-catalog.ts`, and the `connectors.md` guide. Agent files now require updating docs with every feature change.
+
 ## 2026-11-22 (profile)
 
 - Added the Settings page and `/api/v1/profile` (name, verified email change, password change that revokes other sessions) and an OTP `purpose` column.

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prismaClient } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { ZapCreateSchema } from '../schemas';
+import { ZapCreateSchema, ZapRenameSchema } from '../schemas';
 
 export const zapRouter = Router();
 
@@ -17,12 +17,13 @@ zapRouter.post('/', authMiddleware, async (req, res) => {
     return;
   }
 
-  const { availableTriggerId, actions } = parsed.data;
+  const { name, availableTriggerId, actions } = parsed.data;
   // Zap, trigger and back-reference are written atomically.
   const zapId = await prismaClient.$transaction(async (tx) => {
     const zap = await tx.zap.create({
       data: {
         userId: req.userId!,
+        name: name ?? null,
         triggerId: '',
         actions: {
           create: actions.map((a, index) => ({
@@ -58,4 +59,32 @@ zapRouter.get('/:zapId', authMiddleware, async (req, res) => {
     include: zapInclude,
   });
   res.json({ zap });
+});
+
+zapRouter.patch('/:zapId', authMiddleware, async (req, res) => {
+  const parsed = ZapRenameSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ message: 'Name must be at most 80 characters' });
+    return;
+  }
+  const where = { id: String(req.params.zapId), userId: req.userId };
+  const { count } = await prismaClient.zap.updateMany({ where, data: { name: parsed.data.name } });
+  if (count === 0) {
+    res.status(404).json({ message: 'Zap not found' });
+    return;
+  }
+  const zap = await prismaClient.zap.findFirst({ where, include: zapInclude });
+  res.json({ zap });
+});
+
+// Trigger, actions, runs and pending outbox rows cascade in the database.
+zapRouter.delete('/:zapId', authMiddleware, async (req, res) => {
+  const { count } = await prismaClient.zap.deleteMany({
+    where: { id: String(req.params.zapId), userId: req.userId },
+  });
+  if (count === 0) {
+    res.status(404).json({ message: 'Zap not found' });
+    return;
+  }
+  res.json({ ok: true });
 });
