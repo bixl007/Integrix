@@ -1,7 +1,7 @@
 ---
 type: Module
 title: Web routes and layouts
-description: Route groups, the root layout, the auth guard and page data flow.
+description: Route groups, the root layout, the auth guard, the landing, docs, zap, usage and settings pages, and page data flow.
 resource: ../apps/web/app/
 ---
 
@@ -11,7 +11,7 @@ resource: ../apps/web/app/
   - `(marketing)` uses `SiteHeader` and the multi-column `SiteFooter` from `components/marketing`.
   - `(auth)` shows a minimal logo bar with no footer.
   - `(app)` uses `AppShell`, a Zapier-style sidebar with no marketing footer.
-- `(marketing)/page.tsx` is a static server component. Keep it free of client hooks so it ships no page JS.
+- `(marketing)/page.tsx` is a static server component. Keep it free of client hooks so it ships no page JS. Its integrations grid renders from `integration-catalog.ts` (triggers first) and its sender card from `webhook-senders.ts`, so a new connector or sender shows up there without editing the page. The hero flow, feature list and steps are hand-written copy: update them when a headline capability changes.
 - `(marketing)/docs/page.tsx` is the user documentation, also a static server component (copy buttons and the section nav are the only client islands). Its section list comes from the `toc` array, rendered by `components/docs/docs-toc.tsx`, which highlights the current section on scroll (frame-throttled scroll listener, no polling). The connector reference, sample integrations and the webhook sender table render from `action-fields.ts`, `integration-catalog.ts`, `zap-templates.ts` and `webhook-senders.ts`, so update those registries rather than hard-coding copy. Update this page when user-facing behavior, connectors, templating or the public API change.
 - `(auth)/login` and `(auth)/signup` are server pages that render the shared client `AuthForm`. `(auth)/layout.tsx` centers the card.
 - `(app)/layout.tsx` wraps `dashboard`, `integrations`, `usage`, `settings`, `zap/create`, `zap/[id]` and `zap/[id]/edit` in `RequireAuth` (redirects to `/login` without a session) and `AppShell`. These pages are client components that fetch through `useApi`.

@@ -1,12 +1,12 @@
 # Integrix
 
-Integrix is a webhook-driven workflow automation platform (Zapier-style) in a Bun + Turborepo monorepo. Read [ARCHITECTURE.md](ARCHITECTURE.md) for how the system works, start with the [review conventions](REVIEW.md), then use the [OKF index](okf/index.md) to choose the guides for the source areas you touch. When a change spans modules, read each relevant guide, and update a guide when its documented contract changes. Record notable doc changes in [okf/log.md](okf/log.md).
+Integrix is a workflow automation platform (Zapier-style, with webhook and schedule triggers) in a Bun + Turborepo monorepo. Read [ARCHITECTURE.md](ARCHITECTURE.md) for how the system works, start with the [review conventions](REVIEW.md), then use the [OKF index](okf/index.md) to choose the guides for the source areas you touch. When a change spans modules, read each relevant guide, and update a guide when its documented contract changes. Record notable doc changes in [okf/log.md](okf/log.md).
 
 The [README](README.md) covers environment setup, scripts, ports and Docker.
 
 ## How a run flows
 
-`web` → `api` creates a zap. An HTTP POST to `hooks` writes a `ZapRun` plus a `ZapRunOutbox` row in one transaction. `processor` drains the outbox into the Kafka topic `zap-events` (stage 0). `worker` runs that stage's action, then publishes stage + 1 until the last action. All services share `packages/database` (Prisma).
+`web` → `api` creates a zap. A run starts when an HTTP POST reaches `hooks` (which checks the owner and any signature) or when `processor` finds a scheduled zap due. Either one writes a `ZapRun`, with a copy of the zap's steps, plus a `ZapRunOutbox` row in one transaction. `processor` drains due outbox rows into the Kafka topic `zap-events`. `worker` runs that stage's step, records it in `ZapRunStep`, then publishes stage + 1 until the last step (a delay or a replay goes back through the outbox instead). All services share `packages/database` (Prisma).
 
 ## Development
 
@@ -30,10 +30,10 @@ Docs ship in the same change as the code. When you add or change a feature, upda
 Design with low-level-design discipline and SOLID, scaled to the size of the change:
 
 - **Single responsibility**: a module does one job. Routes validate and respond, Prisma calls stay in the service that owns them, and UI primitives hold no business logic.
-- **Open/closed**: extend through registries, not branching. New worker actions go in `apps/worker/src/actions/index.ts` and new action forms in `apps/web/components/zap/action-fields.ts`. Don't add `if (type === ...)` chains.
+- **Open/closed**: extend through registries, not branching. New worker actions go in `apps/worker/src/actions/index.ts`, new forms in `apps/web/components/zap/action-fields.ts` and new webhook senders in `apps/hooks/src/signatures.ts`. Don't add `if (type === ...)` chains.
 - **Liskov substitution**: implementations of a shared contract (`ActionHandler`, UI primitive props) must be swappable without callers checking which one they got.
 - **Interface segregation**: keep props and function signatures minimal. Pass the data a unit needs, not whole objects "just in case".
-- **Dependency inversion**: depend on the shared contract (`ActionHandler`, `api()` client, design tokens), not on concrete details such as raw `fetch`, hard-coded URLs or literal colors.
+- **Dependency inversion**: depend on the shared contract (`ActionHandler`, `api()` client, the worker's guarded `request()`, design tokens), not on concrete details such as raw `fetch`, hard-coded URLs or literal colors.
 - Prefer composition over inheritance and pure functions over stateful classes. Reuse an existing helper or component before adding a new one. Don't add abstractions, options or config nobody uses yet.
 - Validate untrusted input at the boundary (zod in the API; type-narrow parsed JSON). Keep `strict` TypeScript and avoid `any`, `@ts-ignore` and non-null assertions without a reason.
 

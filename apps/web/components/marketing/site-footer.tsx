@@ -52,7 +52,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-4">
           <Logo />
           <p className="max-w-xs text-sm text-muted-foreground">
-            Webhook-driven automations that turn one request into a reliable chain of actions.
+            Automations that turn a webhook or a schedule into a reliable chain of steps.
           </p>
           <ul className="flex flex-wrap gap-1.5" aria-label="Built with">
             {stack.map((s) => (

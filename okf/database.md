@@ -1,7 +1,7 @@
 ---
 type: Module
 title: Database package
-description: The Prisma schema, migrations, seed and shared client exports.
+description: The Prisma schema, migrations, built-in catalog, seed, shared client exports and the run, schedule and encryption helpers.
 resource: ../packages/database/
 ---
 

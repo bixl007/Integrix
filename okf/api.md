@@ -1,7 +1,7 @@
 ---
 type: Module
 title: API service
-description: Auth, zap CRUD, available triggers and actions, and response contracts.
+description: Auth, zaps (create, edit, on/off, run history, replay, field sample), secret masking, connections, usage and response contracts.
 resource: ../apps/api/
 ---
 

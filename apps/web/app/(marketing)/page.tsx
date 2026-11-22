@@ -3,16 +3,20 @@ import type { ComponentType, ReactNode, SVGProps } from 'react';
 import { buttonVariants } from '@/components/ui/button';
 import {
   ArrowRightIcon,
-  BracesIcon,
+  FilterIcon,
   GithubIcon,
+  HashIcon,
   LayersIcon,
   MailIcon,
-  PlusIcon,
+  PlugIcon,
+  RotateIcon,
   ShieldIcon,
-  SolanaIcon,
   WebhookIcon,
 } from '@/components/ui/icons';
+import { integrationCatalog } from '@/components/zap/integration-catalog';
+import { IntegrationIcon } from '@/components/zap/integration-icon';
 import { StepConnector } from '@/components/zap/step-node';
+import { webhookSenders } from '@/components/zap/webhook-senders';
 import { links } from '@/lib/links';
 
 // Server component: static HTML, no page JS. Motion is CSS-only.
@@ -20,71 +24,93 @@ import { links } from '@/lib/links';
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
 const flow: { label: string; name: string; detail: string; Icon: IconType }[] = [
-  { label: 'Trigger', name: 'Webhook', detail: 'POST /hooks/catch/1/9f3c…', Icon: WebhookIcon },
-  { label: 'Action 1', name: 'Solana', detail: 'send {amount} SOL → {address}', Icon: SolanaIcon },
-  { label: 'Action 2', name: 'Email', detail: 'to {email}: "Hi {name}, …"', Icon: MailIcon },
-];
-
-const integrations: { name: string; kind: string; body: string; Icon: IconType }[] = [
   {
+    label: 'Trigger',
     name: 'Webhook',
-    kind: 'Trigger',
-    body: 'Any service that can send an HTTP POST.',
+    detail: 'signed POST /hooks/catch/1/9f3c…',
     Icon: WebhookIcon,
   },
   {
-    name: 'Solana',
-    kind: 'Action',
-    body: 'Transfer SOL on devnet from your wallet.',
-    Icon: SolanaIcon,
+    label: 'Step 2',
+    name: 'Filter',
+    detail: '{order.total} is greater than 100',
+    Icon: FilterIcon,
   },
   {
+    label: 'Step 3',
+    name: 'Slack',
+    detail: 'New order {order.id} from {customer.name}',
+    Icon: HashIcon,
+  },
+  {
+    label: 'Step 4',
     name: 'Email',
-    kind: 'Action',
-    body: 'Templated emails through any SMTP provider.',
+    detail: 'to {customer.email}: "Thanks, {customer.name}"',
     Icon: MailIcon,
   },
 ];
 
+// The grid renders from the same registry as the builder and the docs, triggers first.
+const integrations = Object.entries(integrationCatalog).toSorted(
+  ([, a], [, b]) => Number(b.kind === 'trigger') - Number(a.kind === 'trigger'),
+);
+
+// Services whose webhook signatures are checked; the generic entry isn't a named service.
+const senderNames = webhookSenders.filter((s) => s.samplePayload).map((s) => s.name);
+
 const features: { title: string; body: string; Icon: IconType }[] = [
   {
-    title: 'Webhook triggers',
-    body: 'Every zap gets its own URL. POST any JSON to start a run.',
+    title: 'Webhook and schedule triggers',
+    body: 'Every zap gets its own URL to POST JSON to, or runs on its own every hour or every day.',
     Icon: WebhookIcon,
   },
   {
-    title: 'Multi-step actions',
-    body: 'Each step is its own Kafka message, so a failure retries alone.',
-    Icon: LayersIcon,
+    title: 'Filters, delays and step outputs',
+    body: 'Stop a run on a condition, wait minutes or days, and reuse an earlier result with {steps.2.field}.',
+    Icon: FilterIcon,
   },
   {
-    title: 'Templated payloads',
-    body: 'Use {name} or {user.email} from the request in any step.',
-    Icon: BracesIcon,
+    title: 'Run history and replay',
+    body: 'See every run step by step, get an email when one fails, and replay it from the step that failed.',
+    Icon: RotateIcon,
+  },
+  {
+    title: 'Signed webhooks',
+    body: 'Set a secret and only requests with a valid signature start a run. Common senders are built in.',
+    Icon: ShieldIcon,
+  },
+  {
+    title: 'Your own accounts',
+    body: 'Connect your Gmail and your Solana wallet once. Credentials are encrypted and never shown again.',
+    Icon: PlugIcon,
   },
   {
     title: 'Never drop an event',
-    body: 'Runs and their outbox rows commit in one transaction before anything is queued.',
-    Icon: ShieldIcon,
+    body: 'A run commits with its outbox row before anything is queued, and each step retries on its own.',
+    Icon: LayersIcon,
   },
 ];
 
 const steps = [
-  { title: 'Create a zap', body: 'Pick the webhook trigger and chain the actions you need.' },
-  { title: 'Copy its URL', body: 'Each zap gets a unique endpoint on the hooks service.' },
   {
-    title: 'Send an event',
-    body: 'POST JSON from anywhere. Steps run in order, in the background.',
+    title: 'Create a zap',
+    body: 'Pick a trigger and chain the steps you need, or start from a ready-made template.',
+  },
+  {
+    title: 'Connect it',
+    body: 'Paste the zap URL into the service that sends events, or let a schedule start it.',
+  },
+  {
+    title: 'Watch it run',
+    body: 'Steps run in order in the background. History shows what each one did.',
   },
 ];
 
 const payload = `curl -X POST $ZAP_URL \\
   -H "Content-Type: application/json" \\
   -d '{
-    "name": "Ada",
-    "email": "ada@example.com",
-    "amount": "0.1",
-    "address": "G4wJ…Sja"
+    "order": { "id": "A-1042", "total": 250 },
+    "customer": { "name": "Ada", "email": "ada@example.com" }
   }'`;
 
 export default function HomePage() {
@@ -124,8 +150,9 @@ function Hero() {
             Automate anything that <span className="text-muted-foreground">speaks HTTP.</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg text-balance text-muted-foreground">
-            Integrix turns a single webhook into a reliable chain of actions: send SOL, fire off
-            emails and more, backed by Postgres and Kafka.
+            Integrix turns a webhook or a schedule into a reliable chain of steps: call APIs,
+            message Slack, Discord and Telegram, send email and SOL, with filters and delays in
+            between. Backed by Postgres and Kafka.
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <Link href="/signup" className={buttonVariants({ size: 'lg' })}>
@@ -171,31 +198,48 @@ function Integrations() {
   return (
     <section id="integrations" className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
       <SectionHeading eyebrow="Integrations" title="Start small. Chain what you need.">
-        A focused set of built-ins today, with a handler registry that makes the next one a single
-        file.
+        {integrations.length} built-in triggers and actions today, with a handler registry that
+        makes the next one a single file.
       </SectionHeading>
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {integrations.map(({ name, kind, body, Icon }) => (
+        {integrations.map(([id, { name, kind, description }]) => (
           <div
-            key={name}
-            className="group rounded-lg border border-border p-5 transition-colors hover:border-border-strong"
+            key={id}
+            className="rounded-lg border border-border p-5 transition-colors hover:border-border-strong"
           >
             <div className="flex items-center justify-between">
-              <span className="flex size-10 items-center justify-center rounded-md border border-border bg-background-subtle transition-colors group-hover:text-foreground">
-                <Icon className="size-5" />
-              </span>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              <IntegrationIcon
+                integration={{ id, name, image: '' }}
+                className="size-10 bg-background-subtle"
+              />
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground capitalize">
                 {kind}
               </span>
             </div>
             <h3 className="mt-4 font-medium">{name}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
           </div>
         ))}
-        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong p-5 text-center text-sm text-muted-foreground">
-          <PlusIcon className="size-5" />
-          More coming soon
-        </div>
+        <Link
+          href={`${links.docs}#senders`}
+          className="group flex flex-col justify-between gap-4 rounded-lg border border-dashed border-border-strong p-5 transition-colors hover:border-foreground/40 sm:col-span-2"
+        >
+          <div className="flex items-center justify-between">
+            <span className="flex size-10 items-center justify-center rounded-md border border-border bg-background-subtle">
+              <ShieldIcon className="size-5" />
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground">
+              Setup guide <ArrowRightIcon className="size-3" />
+            </span>
+          </div>
+          <div>
+            <h3 className="font-medium">Verified webhook senders</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Signature checks for {senderNames.slice(0, -1).join(', ')} and {senderNames.at(-1)},
+              plus a secret header for anything else.
+            </p>
+          </div>
+        </Link>
       </div>
     </section>
   );
@@ -208,7 +252,7 @@ function Features() {
         <SectionHeading eyebrow="Features" title="Small surface, solid core.">
           The pieces you need to ship event-driven automations, without the clutter.
         </SectionHeading>
-        <div className="mt-12 grid overflow-hidden rounded-lg border border-border bg-background sm:grid-cols-2">
+        <div className="mt-12 grid overflow-hidden rounded-lg border border-border bg-background sm:grid-cols-2 lg:grid-cols-3">
           {features.map(({ title, body, Icon }) => (
             <div key={title} className="-mt-px -ml-px border-t border-l border-border p-8">
               <span className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
