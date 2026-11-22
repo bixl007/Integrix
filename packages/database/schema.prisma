@@ -104,12 +104,43 @@ model ZapRun {
   id           String        @id @default(uuid())
   zapId        String
   metadata     Json
+  /// "queued", "running", "success", "failed" or "halted"; "unknown" marks runs from before run history.
+  status       String        @default("queued")
+  createdAt    DateTime      @default(now())
+  finishedAt   DateTime?
   zap          Zap           @relation(fields: [zapId], references: [id], onDelete: Cascade)
   zapRunOutbox ZapRunOutbox?
+  steps        ZapRunStep[]
+
+  @@index([zapId, createdAt])
 }
 
+/// A stage waiting to be published to Kafka; a run has at most one pending stage.
 model ZapRunOutbox {
-  id       String @id @default(uuid())
-  zapRunId String @unique
-  zapRun   ZapRun @relation(fields: [zapRunId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid())
+  zapRunId    String   @unique
+  stage       Int      @default(0)
+  /// The processor publishes the row once this time has passed.
+  availableAt DateTime @default(now())
+  zapRun      ZapRun   @relation(fields: [zapRunId], references: [id], onDelete: Cascade)
+
+  @@index([availableAt])
+}
+
+/// The recorded result of one stage of a run, written by the worker.
+model ZapRunStep {
+  id         String   @id @default(uuid())
+  zapRunId   String
+  zapRun     ZapRun   @relation(fields: [zapRunId], references: [id], onDelete: Cascade)
+  stage      Int
+  /// AvailableAction id that ran, kept as text so history survives step edits.
+  actionId   String
+  /// "success", "failed", "halted" or "skipped" (no handler registered).
+  status     String
+  error      String?
+  output     Json?
+  startedAt  DateTime
+  finishedAt DateTime
+
+  @@unique([zapRunId, stage])
 }

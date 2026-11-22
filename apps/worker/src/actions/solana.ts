@@ -22,12 +22,12 @@ export async function sendSol(to: string, amount: string) {
       lamports: Math.round(parseFloat(amount) * LAMPORTS_PER_SOL),
     }),
   );
-  await sendAndConfirmTransaction(connection, tx, [keypair]);
+  return sendAndConfirmTransaction(connection, tx, [keypair]);
 }
 
 export const solanaAction: ActionHandler = async (metadata, payload) => {
   const address = parse(String(metadata.address ?? ''), payload);
   const amount = parse(String(metadata.amount ?? ''), payload);
   console.log(`Sending ${amount} SOL to ${address}`);
-  await sendSol(address, amount);
+  return { output: { signature: await sendSol(address, amount) } };
 };

@@ -156,6 +156,7 @@ services:
       KAFKA_BROKER: kafka:29092
       <<: *smtp
       SOL_PRIVATE_KEY: ${SOL_PRIVATE_KEY:-}
+      WEB_URL: ${WEB_URL:-http://localhost:3001}
     depends_on:
       migrate: { condition: service_completed_successfully }
       kafka: { condition: service_healthy }

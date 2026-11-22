@@ -29,6 +29,7 @@ const toc = [
   { id: 'connectors', label: 'Connectors' },
   { id: 'sample-integrations', label: 'Sample integrations' },
   { id: 'webhooks', label: 'Calling a webhook' },
+  { id: 'run-history', label: 'Run history' },
   { id: 'api', label: 'API reference' },
   { id: 'architecture', label: 'Architecture' },
   { id: 'self-hosting', label: 'Self-hosting' },
@@ -51,7 +52,10 @@ const concepts: { term: string; body: string }[] = [
     term: 'Connector',
     body: 'A trigger or action type you can pick in the builder (Webhook, Email, Solana).',
   },
-  { term: 'Run', body: 'One execution of a zap, started by one webhook request and its body.' },
+  {
+    term: 'Run',
+    body: 'One execution of a zap, started by one webhook request and its body. Its status and step results appear on the zap’s History tab.',
+  },
   {
     term: 'Stage',
     body: 'One action within a run. Stages execute in order, each as its own queued job.',
@@ -109,7 +113,28 @@ const endpoints: { method: string; path: string; returns: string; note: string }
     returns: '{ ok }',
     note: 'Also deletes its runs',
   },
+  {
+    method: 'GET',
+    path: '/zap/:zapId/runs',
+    returns: '{ runs }',
+    note: 'Latest 20 runs with their steps',
+  },
   { method: 'GET', path: '/profile', returns: '{ profile }', note: 'Name, email, password set' },
+];
+
+const runStatuses: { status: string; meaning: string }[] = [
+  {
+    status: 'Queued',
+    meaning: 'The request was recorded and its first step has not finished yet.',
+  },
+  { status: 'Running', meaning: 'At least one step finished and more are still to run.' },
+  { status: 'Success', meaning: 'Every step finished.' },
+  {
+    status: 'Failed',
+    meaning: 'A step still failed after its retries. Later steps did not run.',
+  },
+  { status: 'Halted', meaning: 'A step ended the run on purpose, without an error.' },
+  { status: 'Not recorded', meaning: 'The run happened before run history existed.' },
 ];
 
 const curlFor = (payload: unknown) => webhookCurl('$ZAP_URL', payload);
@@ -372,6 +397,29 @@ export default function DocsPage() {
           </ul>
         </Section>
 
+        <Section id="run-history" title="Run history">
+          <p>
+            Open a zap and choose <strong>History</strong> to see its latest 20 runs with their
+            status, start time and duration. Open a run to see each step: its result, how long it
+            took, the error if it failed and any output it produced. The list updates when you press
+            Refresh.
+          </p>
+          <Table head={['Status', 'Meaning']}>
+            {runStatuses.map((s) => (
+              <tr key={s.status}>
+                <Td>{s.status}</Td>
+                <Td>{s.meaning}</Td>
+              </tr>
+            ))}
+          </Table>
+          <p>
+            A failing step is retried three times (after 1, 5 and 10 seconds). If it still fails,
+            the run stops and the zap&apos;s owner gets an email with the step, the error and a link
+            to the history. A step with no handler on the server is shown as Skipped and the run
+            continues.
+          </p>
+        </Section>
+
         <Section id="api" title="API reference">
           <p>
             The REST API lives under <Code>/api/v1</Code> on the API service. It authenticates with
@@ -409,13 +457,13 @@ export default function DocsPage() {
                             ▼
 caller ──POST──▶ hooks ──▶ Postgres     ZapRun + outbox row, one transaction
                             │
-                        processor       polls the outbox, publishes stage 0
+                        processor       polls the outbox, publishes due stages
                             ▼
                   Kafka "zap-events" ◀──── stage n+1 ────┐
                             │                            │
                             └──────────▶ worker ─────────┘
                                            │
-                                     Email · Solana`}
+                              Email · Solana · step results`}
           />
           <ul className="flex list-disc flex-col gap-2 pl-5">
             <li>
@@ -427,12 +475,12 @@ caller ──POST──▶ hooks ──▶ Postgres     ZapRun + outbox row, one
               transaction, so no accepted event is lost.
             </li>
             <li>
-              <strong>processor</strong> publishes outbox rows to Kafka as stage 0, backing off when
-              idle.
+              <strong>processor</strong> publishes due outbox rows to Kafka (stage 0 for a new run),
+              backing off when idle.
             </li>
             <li>
-              <strong>worker</strong> runs one action per message, queues the next stage, then
-              commits.
+              <strong>worker</strong> runs one action per message, records the step on the run,
+              queues the next stage, then commits.
             </li>
           </ul>
           <p>

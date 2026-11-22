@@ -61,6 +61,37 @@ zapRouter.get('/:zapId', authMiddleware, async (req, res) => {
   res.json({ zap });
 });
 
+// shortcut: latest 20 runs only, add cursor pagination when history has to reach further back.
+const RUN_HISTORY_LIMIT = 20;
+
+// The request body is left out: it can be 100 KB per run.
+zapRouter.get('/:zapId/runs', authMiddleware, async (req, res) => {
+  const runs = await prismaClient.zapRun.findMany({
+    where: { zapId: String(req.params.zapId), zap: { userId: req.userId } },
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      finishedAt: true,
+      steps: {
+        orderBy: { stage: 'asc' },
+        select: {
+          stage: true,
+          actionId: true,
+          status: true,
+          error: true,
+          output: true,
+          startedAt: true,
+          finishedAt: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: RUN_HISTORY_LIMIT,
+  });
+  res.json({ runs });
+});
+
 zapRouter.patch('/:zapId', authMiddleware, async (req, res) => {
   const parsed = ZapRenameSchema.safeParse(req.body);
   if (!parsed.success) {

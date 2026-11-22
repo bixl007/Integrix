@@ -1,8 +1,10 @@
 import type { JsonObject } from '@integrix/database';
-import { PrismaClient } from '@integrix/database';
+import { Prisma, PrismaClient } from '@integrix/database';
+import { sendMail } from '@integrix/mailer';
 import { Kafka } from 'kafkajs';
 import { actionHandlers } from './actions';
-import { retry } from './retry';
+import { failureMail } from './notify';
+import { runStatusAfter, runStep } from './stage';
 
 const TOPIC_NAME = 'zap-events';
 // A failing step retries in place; if it still fails, its run stops so the queue keeps moving.
@@ -13,15 +15,105 @@ const kafka = new Kafka({
   clientId: 'worker',
   brokers: [process.env.KAFKA_BROKER ?? 'localhost:9092'],
 });
+const producer = kafka.producer();
 
 interface StageMessage {
   zapRunId: string;
   stage: number;
 }
 
+const publishStage = (message: StageMessage) =>
+  producer.send({ topic: TOPIC_NAME, messages: [{ value: JSON.stringify(message) }] });
+
+/** Runs one stage, records it on the run, then queues the next stage or emails the owner on failure. */
+async function handleStage({ zapRunId, stage }: StageMessage, heartbeat: () => Promise<void>) {
+  const zapRun = await prismaClient.zapRun.findFirst({
+    where: { id: zapRunId },
+    include: {
+      zap: {
+        include: { actions: { include: { type: true } }, user: { select: { email: true } } },
+      },
+      steps: { where: { stage } },
+    },
+  });
+  const action = zapRun?.zap.actions.find((a) => a.sortingOrder === stage);
+  if (!zapRun || !action) {
+    console.warn(`No action for run ${zapRunId} stage ${stage}`);
+    return;
+  }
+  const next = { zapRunId, stage: stage + 1 };
+
+  // A redelivered stage that already passed must not repeat its side effect.
+  if (zapRun.steps[0]?.status === 'success') {
+    if (zapRun.status === 'running') await publishStage(next);
+    return;
+  }
+
+  const handler = actionHandlers[action.type.id];
+  if (!handler) console.warn(`No handler registered for action "${action.type.id}"`);
+  const startedAt = new Date();
+  // Heartbeats between attempts keep the consumer in its group during back-off.
+  const result = await runStep(
+    handler,
+    (action.metadata ?? {}) as JsonObject,
+    zapRun.metadata,
+    RETRY_DELAYS_MS,
+    heartbeat,
+  );
+  const finishedAt = new Date();
+  const status = runStatusAfter(result.status, stage >= zapRun.zap.actions.length - 1);
+
+  const step = {
+    actionId: action.type.id,
+    status: result.status,
+    error: result.error ?? null,
+    output: result.output ?? Prisma.DbNull,
+    startedAt,
+    finishedAt,
+  };
+  await prismaClient.$transaction([
+    prismaClient.zapRunStep.upsert({
+      where: { zapRunId_stage: { zapRunId, stage } },
+      create: { zapRunId, stage, ...step },
+      update: step,
+    }),
+    prismaClient.zapRun.update({
+      where: { id: zapRunId },
+      data: { status, finishedAt: status === 'running' ? null : finishedAt },
+    }),
+  ]);
+
+  // Each stage is a separate message, so a step retries alone; later steps never run after a failure.
+  if (status === 'running') await publishStage(next);
+  if (status !== 'failed') return;
+
+  const attempts = RETRY_DELAYS_MS.length + 1;
+  console.error(
+    `Run ${zapRunId} stopped at stage ${stage} (${action.type.id}) after ${attempts} attempts: ${result.error}`,
+  );
+  try {
+    await sendMail(
+      failureMail({
+        to: zapRun.zap.user.email,
+        zapId: zapRun.zapId,
+        zapName: zapRun.zap.name,
+        stage,
+        actionName: action.type.name,
+        attempts,
+        error: result.error,
+      }),
+    );
+  } catch (e) {
+    // Best effort: the failure is already on the run, so a mail outage must not redeliver the stage.
+    console.error(
+      `Could not email the owner of run ${zapRunId}:`,
+      e instanceof Error ? e.message : e,
+    );
+  }
+}
+
 async function main() {
   const consumer = kafka.consumer({ groupId: 'main-worker' });
-  const producer = kafka.producer();
   await Promise.all([consumer.connect(), producer.connect()]);
   await consumer.subscribe({ topic: TOPIC_NAME, fromBeginning: true });
 
@@ -29,51 +121,7 @@ async function main() {
     autoCommit: false,
     eachMessage: async ({ partition, message, heartbeat }) => {
       const raw = message.value?.toString();
-      if (!raw) return;
-      const { zapRunId, stage } = JSON.parse(raw) as StageMessage;
-
-      const zapRun = await prismaClient.zapRun.findFirst({
-        where: { id: zapRunId },
-        include: { zap: { include: { actions: { include: { type: true } } } } },
-      });
-      const action = zapRun?.zap.actions.find((a) => a.sortingOrder === stage);
-      if (!zapRun || !action) {
-        console.warn(`No action for run ${zapRunId} stage ${stage}`);
-        return;
-      }
-
-      const handler = actionHandlers[action.type.id];
-      let failed = false;
-      if (!handler) {
-        console.warn(`No handler registered for action "${action.type.id}"`);
-      } else {
-        try {
-          // Heartbeats between attempts keep the consumer in its group during back-off.
-          await retry(
-            () => handler((action.metadata ?? {}) as JsonObject, zapRun.metadata),
-            RETRY_DELAYS_MS,
-            heartbeat,
-          );
-        } catch (e) {
-          failed = true;
-          // shortcut: failures are only logged, record them on the run once runs have a status.
-          console.error(
-            `Run ${zapRunId} stopped at stage ${stage} (${action.type.id}) after ${RETRY_DELAYS_MS.length + 1} attempts:`,
-            e instanceof Error ? e.message : e,
-          );
-        }
-      }
-
-      // Each stage is a separate message, so a step retries alone; later steps never run after a failure.
-      if (!failed && stage < zapRun.zap.actions.length - 1) {
-        await producer.send({
-          topic: TOPIC_NAME,
-          messages: [
-            { value: JSON.stringify({ zapRunId, stage: stage + 1 } satisfies StageMessage) },
-          ],
-        });
-      }
-
+      if (raw) await handleStage(JSON.parse(raw) as StageMessage, heartbeat);
       await consumer.commitOffsets([
         { topic: TOPIC_NAME, partition, offset: (BigInt(message.offset) + 1n).toString() },
       ]);

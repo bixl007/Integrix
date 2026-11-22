@@ -28,17 +28,23 @@ async function ensureTopic() {
   await admin.disconnect();
 }
 
-/** Publishes one batch of outbox rows; returns how many were sent. */
+/** Publishes one batch of due outbox rows, each at its own stage; returns how many were sent. */
 async function drainOutbox(producer: ReturnType<typeof kafka.producer>) {
-  const rows = await client.zapRunOutbox.findMany({ take: BATCH_SIZE });
+  const rows = await client.zapRunOutbox.findMany({
+    where: { availableAt: { lte: new Date() } },
+    orderBy: { availableAt: 'asc' },
+    take: BATCH_SIZE,
+  });
   if (rows.length === 0) return 0;
 
   await producer.send({
     topic: TOPIC_NAME,
-    messages: rows.map((r) => ({ value: JSON.stringify({ zapRunId: r.zapRunId, stage: 0 }) })),
+    messages: rows.map((r) => ({
+      value: JSON.stringify({ zapRunId: r.zapRunId, stage: r.stage }),
+    })),
   });
   await client.zapRunOutbox.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
-  console.log(`Published ${rows.length} zap run(s)`);
+  console.log(`Published ${rows.length} stage(s)`);
   return rows.length;
 }
 

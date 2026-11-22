@@ -26,3 +26,22 @@ export interface User {
   name: string;
   email: string;
 }
+
+export interface ZapRunStep {
+  stage: number;
+  /** Connector id (`AvailableAction.id`) that ran. */
+  actionId: string;
+  status: string;
+  error: string | null;
+  output: Record<string, unknown> | null;
+  startedAt: string;
+  finishedAt: string;
+}
+
+export interface ZapRun {
+  id: string;
+  status: string;
+  createdAt: string;
+  finishedAt: string | null;
+  steps: ZapRunStep[];
+}

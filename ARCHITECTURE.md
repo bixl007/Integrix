@@ -20,10 +20,10 @@ flowchart LR
   API --> DB[(Postgres)]
   Hooks -->|ZapRun + ZapRunOutbox, one tx| DB
   Processor[processor] -->|poll + delete outbox| DB
-  Processor -->|stage 0| Kafka{{Kafka · zap-events}}
+  Processor -->|due stages| Kafka{{Kafka · zap-events}}
   Kafka --> Worker[worker]
   Worker -->|stage n+1| Kafka
-  Worker -->|read run + zap| DB
+  Worker -->|read run, write steps| DB
   Worker --> SMTP[SMTP]
   Worker --> Solana[Solana devnet]
   API --> SMTP
@@ -34,10 +34,10 @@ flowchart LR
 | `apps/web`          | UI: marketing site, docs, auth screens, zap builder and dashboard                     | api (browser `fetch`)      | none (cookie in browser)      |
 | `apps/api`          | Auth (email OTP, Google OAuth, cookie sessions), profile, zap CRUD, connector catalog | Postgres, SMTP             | stateless                     |
 | `apps/hooks`        | Public webhook intake; records a run and its outbox row atomically                    | Postgres                   | stateless                     |
-| `apps/processor`    | Moves outbox rows into Kafka as stage 0                                               | Postgres, Kafka            | stateless (outbox is the log) |
-| `apps/worker`       | Runs one action per message, queues the next stage, commits the offset                | Postgres, Kafka, SMTP, RPC | Kafka consumer group offsets  |
+| `apps/processor`    | Moves due outbox rows into Kafka (stage 0 for a new run)                              | Postgres, Kafka            | stateless (outbox is the log) |
+| `apps/worker`       | Runs one action per message, records the step, queues the next stage, commits         | Postgres, Kafka, SMTP, RPC | Kafka consumer group offsets  |
 | `packages/database` | Prisma schema, migrations, seed, shared client                                        | —                          | —                             |
-| `packages/mailer`   | One SMTP transport shared by the API (OTP) and the worker (Email action)              | SMTP                       | —                             |
+| `packages/mailer`   | One SMTP transport shared by the API (OTP) and the worker (Email action, run alerts)  | SMTP                       | —                             |
 
 Every backend service imports `@integrix/database`, so there is one schema and one client for the whole monorepo.
 
@@ -53,12 +53,13 @@ erDiagram
   Zap ||--o{ ZapRun : "executed as"
   Trigger }o--|| AvailableTrigger : "type"
   Action }o--|| AvailableAction : "type"
-  ZapRun ||--o| ZapRunOutbox : "pending publish"
+  ZapRun ||--o| ZapRunOutbox : "pending stage"
+  ZapRun ||--o{ ZapRunStep : "records"
 ```
 
 - **Catalog tables**: `AvailableTrigger` and `AvailableAction` list the connector types. Their string ids (`webhook`, `email`, `solana`) are the contract that every registry keys on. `seed.ts` upserts them idempotently.
 - **Zap definition**: `Zap` (with an optional custom `name`), `Trigger` and `Action`. Deleting a zap cascades in the database to its trigger, actions, runs and pending outbox rows. A queued stage for a deleted zap finds no run, so the worker logs it and skips it. `Action.sortingOrder` (0-based) is the stage number, and `Action.metadata` is a flat map of template strings such as `{ "email": "{email}" }`.
-- **Execution**: `ZapRun.metadata` holds the raw webhook body. A `ZapRunOutbox` row exists only until the processor publishes the run.
+- **Execution**: `ZapRun.metadata` holds the raw webhook body, and `status` (`queued`, `running`, `success`, `failed`, `halted`) with `createdAt` and `finishedAt` track its progress. Runs from before run history are `unknown`. `ZapRunStep` holds one row per stage (unique on run and stage): the connector id, `status` (`success`, `failed`, `halted`, `skipped`), `error`, `output` and timings. A `ZapRunOutbox` row is a stage waiting to be published: it carries its `stage` and an `availableAt` time, and exists only until the processor publishes it.
 - **Auth**: `Session` and `OtpCode` store SHA-256 hashes only, never raw tokens or codes.
 
 ## 4. Life of a run
@@ -75,37 +76,41 @@ sequenceDiagram
   H->>DB: tx: insert ZapRun + ZapRunOutbox
   H-->>C: 200 { message: "Webhook received" }
   loop poll (1s → 5s back-off when idle)
-    P->>DB: take ≤10 outbox rows
-    P->>K: { zapRunId, stage: 0 }
+    P->>DB: take ≤10 due outbox rows
+    P->>K: { zapRunId, stage }
     P->>DB: delete published rows
   end
   K->>W: { zapRunId, stage }
   W->>DB: load run + zap + actions
   W->>W: look up handler by action id, fill templates, run it (retries on failure)
-  alt step succeeded and more actions remain
+  W->>DB: tx: upsert ZapRunStep + update ZapRun status
+  alt step passed and more actions remain
     W->>K: { zapRunId, stage: stage + 1 }
+  else step failed
+    W->>W: email the zap owner
   end
   W->>K: commit offset
 ```
 
 1. **Intake** (`hooks`): the body (100 KB max) becomes `ZapRun.metadata`. The run and outbox rows are written in one transaction, so an accepted request can't be lost and a failed write leaves nothing behind. The handler makes no external calls, which keeps it fast.
-2. **Publish** (`processor`): it ensures the topic exists (1 partition, RF 1), then drains the outbox in batches. When the outbox is empty, polling backs off exponentially to 5 s; after a full batch it polls again immediately.
-3. **Execute** (`worker`, consumer group `main-worker`, manual commits): it finds the action whose `sortingOrder === stage` and resolves its handler from the registry. The worker fills the templates from the payload and awaits the handler. Then it publishes `stage + 1` if more actions remain, and only after that commits the offset.
+2. **Publish** (`processor`): it ensures the topic exists (1 partition, RF 1), then drains the outbox in batches, taking only rows whose `availableAt` has passed and publishing each at its own `stage`. Hooks writes stage 0 rows that are due at once; a later stage with a future `availableAt` is how a run can wait without the worker sleeping. When the outbox is empty, polling backs off exponentially to 5 s; after a full batch it polls again immediately.
+3. **Execute** (`worker`, consumer group `main-worker`, manual commits): it finds the action whose `sortingOrder === stage` and resolves its handler from the registry. The worker fills the templates from the payload and awaits the handler, which may return `{ output?, halt? }`. It then writes the step's result and the run's new status in one transaction, publishes `stage + 1` straight to Kafka if the step passed and more actions remain, and only after that commits the offset. A step that returns `halt` ends the run as `halted` without an error.
 
 Each stage is its own Kafka message, so a failing step is retried alone and earlier steps aren't repeated. Database or Kafka errors (as opposed to a failing action) still throw, and Kafka redelivers the message once the outage clears.
 
 ## 5. Delivery guarantees and failure modes
 
-| Situation                                       | Behavior                                                                                                                                                                                              |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DB write fails in hooks                         | The transaction rolls back and the caller gets a 500. Nothing is half-stored.                                                                                                                         |
-| Processor crashes between Kafka send and delete | Rows are re-published, so stage 0 can run twice (**at-least-once**).                                                                                                                                  |
-| Handler throws                                  | The stage retries in place after 1 s, 5 s and 10 s. If it still fails, the run stops (later steps don't run), the error is logged and the offset is committed, so one bad step can't block the queue. |
-| Worker crashes after the handler, before commit | The stage runs again, so handlers should be idempotent where possible.                                                                                                                                |
-| Unknown action id (no handler registered)       | The worker logs a warning, skips the step and continues to the next stage.                                                                                                                            |
-| Kafka unavailable                               | Runs accumulate safely in the outbox until the processor can publish.                                                                                                                                 |
+| Situation                                       | Behavior                                                                                                                                                                                                                                           |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DB write fails in hooks                         | The transaction rolls back and the caller gets a 500. Nothing is half-stored.                                                                                                                                                                      |
+| Processor crashes between Kafka send and delete | Rows are re-published, so stage 0 can run twice (**at-least-once**).                                                                                                                                                                               |
+| Handler throws                                  | The stage retries in place after 1 s, 5 s and 10 s. If it still fails, the step and run are marked `failed` with the error, later steps don't run, the zap's owner is emailed, and the offset is committed, so one bad step can't block the queue. |
+| Worker crashes after the handler, before commit | The stage is redelivered. If its step was already recorded as `success` the handler is skipped and only the next stage is re-queued. Otherwise it runs again, so handlers should be idempotent.                                                    |
+| Unknown action id (no handler registered)       | The worker logs a warning, records the step as `skipped` and continues to the next stage.                                                                                                                                                          |
+| Failure email can't be sent                     | It's logged and dropped. The run is already marked `failed`, and the stage isn't redelivered.                                                                                                                                                      |
+| Kafka unavailable                               | Runs accumulate safely in the outbox until the processor can publish.                                                                                                                                                                              |
 
-Known gaps (candidates for future work): runs have no status or history table, so a stopped run is visible only in the worker log; there is no dead-letter topic to replay failed steps; and `userId` in the webhook URL isn't checked against the zap's owner.
+Known gaps (candidates for future work): a failed run can't be replayed yet; runs and their steps are never pruned; and `userId` in the webhook URL isn't checked against the zap's owner.
 
 ## 6. Templating
 
@@ -118,7 +123,7 @@ A connector is identified by one string id. Each layer keeps its own small regis
 | Layer  | Registry                                         | Holds                                                      |
 | ------ | ------------------------------------------------ | ---------------------------------------------------------- |
 | DB     | `packages/database/seed.ts`                      | Catalog row (id, name, image)                              |
-| Worker | `apps/worker/src/actions/index.ts`               | `ActionHandler(metadata, payload)`                         |
+| Worker | `apps/worker/src/actions/index.ts`               | `ActionHandler(metadata, payload)` → `{ output?, halt? }`  |
 | Web    | `apps/web/components/zap/action-fields.ts`       | Builder form fields per action                             |
 | Web    | `apps/web/components/zap/integration-catalog.ts` | Display name, kind and description                         |
 | Web    | `apps/web/components/zap/integration-icon.tsx`   | Monochrome icon for built-ins                              |
@@ -145,7 +150,7 @@ The goal is to let users define and configure connectors without a code change. 
 
 ## 9. Web app
 
-- **Route groups**: `(marketing)` is public and holds the landing page and `/docs`, both static server components. `(auth)` holds login and signup. `(app)` holds the dashboard, integrations, settings and the zap builder and detail pages, behind `RequireAuth`.
+- **Route groups**: `(marketing)` is public and holds the landing page and `/docs`, both static server components. `(auth)` holds login and signup. `(app)` holds the dashboard, integrations, settings and the zap builder and detail pages, behind `RequireAuth`. The zap page has Overview and History tabs; History lists the latest runs and their steps.
 - **Data**: `lib/api.ts` is the only backend client. `useApi` handles GETs and `useSession` is the single session store.
 - **Builder**: picks connectors through `StepPicker` and the `action-fields` registry, and publishes `POST /api/v1/zap`. `/zap/create?template=<id>` prefills it from `zap-templates.ts`.
 - **Design system**: monochrome tokens in `globals.css` and primitives in `components/ui`. See [okf/design-system.md](okf/design-system.md).

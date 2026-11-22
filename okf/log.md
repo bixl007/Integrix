@@ -1,5 +1,9 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (run history)
+
+- Runs now have a status and a step log (migration `run_history`: `ZapRun.status`/`createdAt`/`finishedAt`, the `ZapRunStep` table, and `stage` and `availableAt` on `ZapRunOutbox`). The processor publishes due outbox rows at their own stage. `ActionHandler` may return `{ output?, halt? }`, the worker records every step, skips a redelivered stage that already passed and emails the zap's owner when a run fails. Added `GET /api/v1/zap/:zapId/runs`, the History tab on the zap page, the `Tabs` primitive and 10-second SMTP timeouts in the mailer. The worker now reads `WEB_URL`.
+
 ## 2026-11-22 (worker retries)
 
 - A failing action now retries in place (1 s, 5 s, 10 s) and then stops its run instead of being redelivered forever, so one bad step can no longer block the queue.
