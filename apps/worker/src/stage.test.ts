@@ -66,3 +66,30 @@ test('a requested delay is passed through', async () => {
   const result = await runStep(async () => ({ delayMs: 5_000 }), {}, {}, noDelays);
   expect(result).toMatchObject({ status: 'success', delayMs: 5_000 });
 });
+
+test('the context reaches the handler, and a context that cannot load fails the step', async () => {
+  const seen = await runStep(
+    async (_m, _p, context) => ({ output: { user: context?.connection?.user ?? null } }),
+    {},
+    {},
+    noDelays,
+    undefined,
+    async () => ({ connection: { user: 'me@gmail.com' } }),
+  );
+  expect(seen.output).toEqual({ user: 'me@gmail.com' });
+
+  const failed = await runStep(
+    async () => {},
+    {},
+    {},
+    noDelays,
+    undefined,
+    async () => {
+      throw new Error('The connection this step uses was deleted.');
+    },
+  );
+  expect(failed).toMatchObject({
+    status: 'failed',
+    error: 'The connection this step uses was deleted.',
+  });
+});

@@ -1,5 +1,9 @@
 # Integrix knowledge bundle updates
 
+## 2026-11-22 (connections)
+
+- Users can save their own Gmail account and Solana wallet as connections (`Connection` table, `AvailableAction.connectionFields`, migration `connections`), encrypted with the new `CONNECTION_SECRET`. Added `/api/v1/connection`, the Connections card in Settings, a Send from / Pay from select on Email and Solana steps, and an optional `{ connection }` third argument to `ActionHandler`. Steps without a connection keep using the server account. `sendMail` takes an optional Gmail account.
+
 ## 2026-11-22 (webhook security, sender presets, usage)
 
 - Hooks now checks that the URL's user id is the zap owner's and, when the webhook trigger has a `secret`, verifies the sender's signature over the raw body (`src/signatures.ts`: generic, GitHub, Stripe, Shopify, Typeform, Calendly, Cal.com, Helius). Trigger secrets are masked through `AvailableTrigger.secretFields` (migration `trigger_secret_fields`). Added the `webhook-senders.ts` presets with example payloads, a "Webhook senders" docs section, array positions in templates (`{0.signature}`), `GET /api/v1/usage` and the Usage page.

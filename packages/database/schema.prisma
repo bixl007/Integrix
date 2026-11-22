@@ -24,6 +24,7 @@ model User {
   zaps          Zap[]
   sessions      Session[]
   otpCodes      OtpCode[]
+  connections   Connection[]
 }
 
 /// Server-side login session; the cookie holds the raw token, only its SHA-256 is stored.
@@ -99,8 +100,26 @@ model AvailableAction {
   name         String
   image        String
   /// Metadata keys holding credentials; the API never returns their values.
-  secretFields String[] @default([])
-  actions      Action[]
+  secretFields     String[] @default([])
+  /// Credential keys a user's Connection for this action holds; empty when it takes none.
+  connectionFields String[] @default([])
+  actions          Action[]
+}
+
+/// A user's saved credential for one connector, such as their Gmail account or Solana wallet.
+model Connection {
+  id          String   @id @default(uuid())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// AvailableAction id the credential is for.
+  connectorId String
+  /// The user's label for it, e.g. "Work Gmail".
+  name        String
+  /// The credential values as JSON, sealed with AES-256-GCM (src/secret-box.ts).
+  secret      String
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
 }
 
 model AvailableTrigger {

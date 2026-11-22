@@ -1,7 +1,8 @@
 'use client';
 
 import { Dialog } from '@/components/ui/dialog';
-import type { ZapAction } from '@/lib/types';
+import { useApi } from '@/hooks/use-api';
+import type { Connection, ZapAction } from '@/lib/types';
 import { actionFields } from './action-fields';
 
 /** Read-only view of an action's full settings, which the flow card truncates. */
@@ -16,6 +17,15 @@ export function StepDetailsDialog({
 }) {
   const fields = actionFields[action.type.id] ?? [];
   const label = (key: string) => fields.find((f) => f.key === key)?.label ?? key;
+  const connectionField = fields.find((f) => f.connection);
+  const connections = useApi<{ connections: Connection[] }>(connectionField ? '/connection' : null);
+  // A connection is stored as an id; show the name the user gave it.
+  const display = (key: string, value: string) => {
+    if (key !== connectionField?.key) return value;
+    if (!value) return connectionField.placeholder;
+    const found = connections.data?.connections.find((c) => c.id === value);
+    return found?.name ?? (connections.loading ? '' : 'A connection that was deleted');
+  };
 
   return (
     <Dialog
@@ -29,7 +39,7 @@ export function StepDetailsDialog({
           <div key={key} className="flex flex-col gap-1.5">
             <dt className="text-sm font-medium">{label(key)}</dt>
             <dd className="rounded-md border border-border bg-background-subtle p-3 font-mono text-sm break-words whitespace-pre-wrap">
-              {value || <span className="text-muted-foreground">Empty</span>}
+              {display(key, value) || <span className="text-muted-foreground">Empty</span>}
             </dd>
           </div>
         ))}

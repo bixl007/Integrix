@@ -50,11 +50,13 @@ export const integrationCatalog: Record<string, IntegrationInfo> = {
   solana: {
     name: 'Solana',
     kind: 'action',
-    description: 'Transfer SOL on devnet to an address taken from the payload.',
+    description:
+      'Transfer SOL on devnet to an address taken from the payload, from your own wallet or the server’s.',
   },
   email: {
     name: 'Email',
     kind: 'action',
-    description: 'Send a templated email through your SMTP provider.',
+    description:
+      'Send a templated email from your own Gmail account, or from the server’s mail account.',
   },
 };

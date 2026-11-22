@@ -116,7 +116,8 @@ All apps read the root `.env`. See [`.env.example`](.env.example) for the full l
 | `WEB_URL`, `API_PUBLIC_URL`                    | api, worker       | CORS origin, OAuth callback base, `Secure` cookies when https. The worker uses `WEB_URL` for the history link in run-failure emails |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`     | api               | Optional Google sign-in                                                                                                             |
 | `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_HOOKS_URL` | web               | Inlined at build time                                                                                                               |
-| `SOL_PRIVATE_KEY`                              | worker            | Base58 secret key of a funded devnet wallet                                                                                         |
+| `SOL_PRIVATE_KEY`                              | worker            | Base58 secret key of a funded devnet wallet, used by Solana steps without their own connection                                      |
+| `CONNECTION_SECRET`                            | api, worker       | Encrypts users' saved connections. Generate with `openssl rand -hex 32`; without it connections can't be added or used              |
 | `SMTP_*`, `FROM_EMAIL`                         | api, worker       | For Gmail, use an App Password                                                                                                      |
 
 ## Resource footprint

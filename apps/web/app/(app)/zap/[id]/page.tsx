@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeftIcon } from '@/components/ui/icons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs } from '@/components/ui/tabs';
+import { stepSummary } from '@/components/zap/action-fields';
 import { RunHistory } from '@/components/zap/run-history';
 import { StepDetailsDialog } from '@/components/zap/step-details-dialog';
 import { StepConnector, StepNode } from '@/components/zap/step-node';
@@ -109,7 +110,7 @@ function ZapDetails({
                 label="Trigger"
                 index={1}
                 integration={zap.trigger?.type}
-                detail={Object.values(zap.trigger?.metadata ?? {}).join(' · ') || undefined}
+                detail={stepSummary(zap.trigger?.type.id, zap.trigger?.metadata)}
               />
               {actions.map((a, i) => (
                 <div key={a.id} className="flex w-full flex-col items-center">
@@ -118,7 +119,7 @@ function ZapDetails({
                     label="Action"
                     index={i + 2}
                     integration={a.type}
-                    detail={a.metadata ? Object.values(a.metadata).join(' · ') : undefined}
+                    detail={stepSummary(a.type.id, a.metadata)}
                     onClick={() => setViewing({ action: a, index: i + 2 })}
                   />
                 </div>

@@ -15,6 +15,8 @@ export interface ActionField {
   secret?: boolean;
   /** Help text under the field. */
   hint?: string;
+  /** Renders a select of the user's connections for this connector; the value is a connection id. */
+  connection?: boolean;
 }
 
 export const actionFields: Record<string, ActionField[]> = {
@@ -63,6 +65,13 @@ export const actionFields: Record<string, ActionField[]> = {
     },
   ],
   email: [
+    {
+      key: 'connectionId',
+      label: 'Send from',
+      placeholder: 'Server mail account',
+      connection: true,
+      optional: true,
+    },
     { key: 'email', label: 'To', placeholder: '{email}' },
     { key: 'subject', label: 'Subject', placeholder: 'Your order {order.id} is confirmed' },
     {
@@ -156,7 +165,28 @@ export const actionFields: Record<string, ActionField[]> = {
     },
   ],
   solana: [
+    {
+      key: 'connectionId',
+      label: 'Pay from',
+      placeholder: 'Server wallet',
+      connection: true,
+      optional: true,
+    },
     { key: 'amount', label: 'Amount (SOL)', placeholder: '{amount}' },
     { key: 'address', label: 'Recipient address', placeholder: '{address}' },
   ],
 };
+
+/** The settings worth showing on a step card: not credentials, not connection ids, not empty. */
+export function stepSummary(
+  connectorId: string | undefined,
+  metadata: Record<string, string> | null | undefined,
+) {
+  const hidden = new Set(
+    (actionFields[connectorId ?? ''] ?? [])
+      .filter((f) => f.secret || f.connection)
+      .map((f) => f.key),
+  );
+  const shown = Object.entries(metadata ?? {}).filter(([key, value]) => value && !hidden.has(key));
+  return shown.map(([, value]) => value).join(' · ') || undefined;
+}

@@ -1,5 +1,6 @@
 'use client';
 
+import { ConnectionsCard } from '@/components/settings/connections';
 import {
   EmailForm,
   NameForm,
@@ -18,7 +19,7 @@ export default function SettingsPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage your profile and how you sign in.
+          Manage your profile, how you sign in and the accounts your steps use.
         </p>
       </div>
 
@@ -36,6 +37,7 @@ export default function SettingsPage() {
           <NameForm initial={data.profile.name} />
           <EmailForm initial={data.profile.email} />
           <PasswordForm hasPassword={data.profile.hasPassword} />
+          <ConnectionsCard />
         </div>
       )}
     </div>
